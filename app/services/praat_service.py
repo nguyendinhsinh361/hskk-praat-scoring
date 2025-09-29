@@ -1,0 +1,227 @@
+import subprocess
+from pathlib import Path
+from typing import Dict, Optional
+import logging
+import time
+
+from app.config import PRAAT_CONTAINER_NAME, PRAAT_OUTPUT_DIR
+from app.models.hskk_models import AudioFeatures
+
+logger = logging.getLogger(__name__)
+
+class PraatService:
+    def __init__(self):
+        self.container_name = PRAAT_CONTAINER_NAME
+        
+    def _check_file_exists_in_container(self, file_path: str) -> bool:
+        """Check if file exists in container"""
+        try:
+            cmd = ["docker", "exec", self.container_name, "ls", "-la", file_path]
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+            return result.returncode == 0
+        except Exception as e:
+            logger.error(f"Error checking file in container: {e}")
+            return False
+    
+    def _run_praat_script(self, script_name: str, audio_file: Path, output_file: Path, 
+                         additional_args: list = None) -> bool:
+        """Run a Praat script using docker exec with better error handling"""
+        try:
+            # Check if audio file exists in container
+            container_audio_path = f"/data/audio_input/{audio_file.name}"
+            if not self._check_file_exists_in_container(container_audio_path):
+                logger.error(f"Audio file not found in container: {container_audio_path}")
+                return False
+            
+            # Check if script exists
+            container_script_path = f"/praat/scripts/{script_name}"
+            if not self._check_file_exists_in_container(container_script_path):
+                logger.error(f"Praat script not found in container: {container_script_path}")
+                return False
+            
+            # Prepare Docker exec command
+            cmd = [
+                "docker", "exec", self.container_name,
+                "praat", "--run", container_script_path,
+                container_audio_path,
+                f"/data/praat_output/{output_file.name}"
+            ]
+            
+            if additional_args:
+                cmd.extend(additional_args)
+            
+            logger.info(f"Running Praat command: {' '.join(cmd)}")
+            
+            # Execute command
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+            
+            if result.returncode == 0:
+                logger.info(f"Praat script {script_name} executed successfully")
+                if result.stdout.strip():
+                    logger.debug(f"Praat output: {result.stdout}")
+                return True
+            else:
+                logger.error(f"Praat script failed with return code {result.returncode}")
+                logger.error(f"Praat stderr: {result.stderr}")
+                logger.error(f"Praat stdout: {result.stdout}")
+                return False
+                
+        except subprocess.TimeoutExpired:
+            logger.error("Praat script execution timed out")
+            return False
+        except FileNotFoundError:
+            logger.error("Docker command not found. Is Docker installed and running?")
+            return False
+        except Exception as e:
+            logger.error(f"Error running Praat script: {e}")
+            return False
+    
+    def extract_features(self, audio_file: Path) -> Optional[AudioFeatures]:
+        """Extract acoustic features using Praat"""
+        output_file = PRAAT_OUTPUT_DIR / f"{audio_file.stem}_features.txt"
+        
+        logger.info(f"Extracting features from {audio_file.name}")
+        logger.info(f"Audio file path: {audio_file}")
+        logger.info(f"Output file path: {output_file}")
+        
+        # Ensure output directory exists
+        PRAAT_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        
+        # Run Praat feature extraction
+        if not self._run_praat_script("extract_features.praat", audio_file, output_file):
+            logger.error("Feature extraction failed")
+            return None
+            
+        # Wait a moment for file to be written
+        time.sleep(1)
+        
+        # Parse results
+        if output_file.exists():
+            logger.info(f"Features file created successfully: {output_file}")
+            return self._parse_features_file(output_file)
+        else:
+            logger.error(f"Output file not created: {output_file}")
+            # List files in output directory for debugging
+            try:
+                output_files = list(PRAAT_OUTPUT_DIR.glob("*"))
+                logger.info(f"Files in output directory: {output_files}")
+            except Exception as e:
+                logger.error(f"Could not list output directory: {e}")
+            return None
+    
+    def _parse_features_file(self, features_file: Path) -> Optional[AudioFeatures]:
+        """Parse Praat features output file"""
+        try:
+            features_dict = {}
+            
+            logger.info(f"Parsing features file: {features_file}")
+            
+            # Check file size
+            file_size = features_file.stat().st_size
+            logger.info(f"Features file size: {file_size} bytes")
+            
+            with open(features_file, 'r', encoding='utf-8') as f:
+                content = f.read()
+                logger.debug(f"Features file content:\n{content}")
+                
+            # Parse line by line
+            with open(features_file, 'r', encoding='utf-8') as f:
+                for line_num, line in enumerate(f, 1):
+                    line = line.strip()
+                    if line.startswith('#') or not line:
+                        continue
+                        
+                    if ',' in line:
+                        parts = line.split(',', 1)
+                        if len(parts) == 2:
+                            key = parts[0].strip()
+                            value_str = parts[1].strip()
+                            try:
+                                # Handle potential "undefined" or "--undefined--" values
+                                if value_str.lower() in ['undefined', '--undefined--', 'nan', 'inf', '-inf']:
+                                    logger.warning(f"Undefined value for {key}, using default")
+                                    features_dict[key] = 0.0
+                                else:
+                                    features_dict[key] = float(value_str)
+                            except ValueError:
+                                logger.warning(f"Could not parse value for {key}: '{value_str}' on line {line_num}")
+                                features_dict[key] = 0.0
+            
+            logger.info(f"Parsed {len(features_dict)} features: {list(features_dict.keys())}")
+            
+            # Create AudioFeatures object with safe defaults and validation
+            duration = max(0.0, features_dict.get('duration', 0.0))
+            pitch_mean = max(50.0, min(500.0, features_dict.get('pitch_mean', 200.0)))  # Reasonable pitch range
+            pitch_std = max(0.0, features_dict.get('pitch_std', 30.0))
+            pitch_range = max(0.0, features_dict.get('pitch_range', 100.0))
+            
+            return AudioFeatures(
+                duration=duration,
+                pitch_mean=pitch_mean,
+                pitch_std=pitch_std,
+                pitch_range=pitch_range,
+                f1_mean=max(200.0, min(1000.0, features_dict.get('f1_mean', 500.0))),
+                f2_mean=max(800.0, min(3000.0, features_dict.get('f2_mean', 1500.0))),
+                f3_mean=max(1500.0, min(4000.0, features_dict.get('f3_mean', 2500.0))),
+                intensity_mean=max(0.0, min(100.0, features_dict.get('intensity_mean', 60.0))),
+                intensity_std=max(0.0, features_dict.get('intensity_std', 5.0)),
+                spectral_centroid=max(100.0, features_dict.get('spectral_centroid', 1000.0)),
+                hnr_mean=max(0.0, min(40.0, features_dict.get('hnr_mean', 20.0))),
+                jitter=max(0.0, min(0.1, features_dict.get('jitter', 0.01))),
+                shimmer=max(0.0, min(1.0, features_dict.get('shimmer', 0.1))),
+                speech_rate=max(0.0, features_dict.get('speech_rate', 180.0)),
+                speech_duration=max(0.0, min(duration, features_dict.get('speech_duration', duration))),
+                pause_ratio=max(0.0, min(1.0, features_dict.get('pause_ratio', 0.1)))
+            )
+            
+        except Exception as e:
+            logger.error(f"Error parsing features file: {e}")
+            return None
+    
+    def test_connection(self) -> bool:
+        """Test connection to Praat container"""
+        try:
+            # Test simple Praat command
+            cmd = ["docker", "exec", self.container_name, "praat", "--version"]
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            
+            if result.returncode == 0:
+                logger.info(f"Praat container connection successful. Version: {result.stdout.strip()}")
+                return True
+            else:
+                logger.error(f"Praat test failed: {result.stderr}")
+                return False
+                
+        except subprocess.TimeoutExpired:
+            logger.error("Praat connection test timed out")
+            return False
+        except FileNotFoundError:
+            logger.error("Docker command not found")
+            return False
+        except Exception as e:
+            logger.error(f"Praat connection test failed: {e}")
+            return False
+    
+    def debug_container_state(self) -> dict:
+        """Debug container state and file system"""
+        debug_info = {}
+        
+        try:
+            # Check container status
+            cmd = ["docker", "inspect", self.container_name]
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+            debug_info["container_running"] = result.returncode == 0
+            
+            if result.returncode == 0:
+                # List data directories
+                for dir_path in ["/data/audio_input", "/data/audio_output", "/data/praat_output", "/praat/scripts"]:
+                    cmd = ["docker", "exec", self.container_name, "ls", "-la", dir_path]
+                    result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+                    debug_info[f"dir_{dir_path.replace('/', '_')}"] = {
+                        "success": result.returncode == 0,
+                        "content": result.stdout if result.returncode == 0 else result.stderr
+                    }
+        except Exception as e:
+            debug_info["error"] = str(e)
+        
+        return debug_info

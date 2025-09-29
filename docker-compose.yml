@@ -1,0 +1,36 @@
+services:
+  praat:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.praat
+    container_name: hskk-praat-container
+    volumes:
+      - ./data:/data
+      - ./praat_scripts:/praat/scripts:ro
+    networks:
+      - hskk_network
+    restart: unless-stopped
+
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: hskk-app-container
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./app:/app/app
+      # Mount Docker socket để có thể chạy docker commands
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - praat
+    environment:
+      - PRAAT_CONTAINER_NAME=hskk-praat-container
+    networks:
+      - hskk_network
+    restart: unless-stopped
+
+networks:
+  hskk_network:
+    driver: bridge
