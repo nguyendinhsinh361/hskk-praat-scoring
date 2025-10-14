@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HSKK Praat Features Analyzer</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/features.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎤 HSKK Praat Features Analyzer</h1>
+            <p>汉语水平口语考试 - 43 Acoustic Features Analysis</p>
+            <p style="font-size: 0.9em; margin-top: 10px;">Upload audio file to extract comprehensive Praat acoustic features</p>
+        </div>
+
+        <div class="upload-section">
+            <div class="upload-box" id="uploadBox">
+                <div class="upload-icon">📁</div>
+                <h3>Drag & Drop Audio File Here</h3>
+                <p style="color: #666; margin: 10px 0;">or click to browse</p>
+                <p style="color: #999; font-size: 0.9em;">Supported formats: WAV, MP3, M4A, FLAC</p>
+                <input type="file" id="fileInput" class="file-input" accept=".wav,.mp3,.m4a,.flac">
+            </div>
+
+            <div class="level-selector">
+                <button class="level-btn" data-level="elementary">初级 Elementary</button>
+                <button class="level-btn active" data-level="intermediate">中级 Intermediate</button>
+                <button class="level-btn" data-level="advanced">高级 Advanced</button>
+            </div>
+
+            <div style="text-align: center;">
+                <button class="btn" id="analyzeBtn" disabled>🔬 Analyze Audio Features</button>
+            </div>
+
+            <div id="selectedFile" style="text-align: center; margin-top: 20px; color: #666;"></div>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <h3>Analyzing Audio with Praat...</h3>
+            <p style="color: #666; margin-top: 10px;">Extracting 43 acoustic features</p>
+        </div>
+
+        <div class="error" id="error"></div>
+
+        <div class="results" id="results">
+            <div class="score-card">
+                <h2>Overall HSKK Score</h2>
+                <div class="score-value" id="overallScore">--</div>
+                <div id="levelAchieved" style="font-size: 1.3em; opacity: 0.9;">--</div>
+            </div>
+
+            <div class="score-breakdown">
+                <div class="score-item">
+                    <h4>🎵 Pronunciation</h4>
+                    <div class="value" id="pronunciationScore">--</div>
+                </div>
+                <div class="score-item">
+                    <h4>⚡ Fluency</h4>
+                    <div class="value" id="fluencyScore">--</div>
+                </div>
+                <div class="score-item">
+                    <h4>📝 Grammar</h4>
+                    <div class="value" id="grammarScore">--</div>
+                </div>
+                <div class="score-item">
+                    <h4>📚 Vocabulary</h4>
+                    <div class="value" id="vocabularyScore">--</div>
+                </div>
+            </div>
+
+            <div class="audio-info" id="audioInfo"></div>
+
+            <h2 style="margin: 30px 0 20px; color: #333;">📊 Detailed Acoustic Features (43 Features)</h2>
+
+            <div class="features-grid">
+                <div class="feature-category">
+                    <div class="category-header">⏱️ Basic Information</div>
+                    <div class="category-content" id="basicFeatures"></div>
+                </div>
+
+                <div class="feature-category">
+                    <div class="category-header">🎵 Pitch Features (8)</div>
+                    <div class="category-content" id="pitchFeatures"></div>
+                </div>
+
+                <div class="feature-category">
+                    <div class="category-header">📊 Formants F1-F4 (8)</div>
+                    <div class="category-content" id="formantFeatures"></div>
+                </div>
+
+                <div class="feature-category">
+                    <div class="category-header">🔊 Intensity (4)</div>
+                    <div class="category-content" id="intensityFeatures"></div>
+                </div>
+
+                <div class="feature-category">
+                    <div class="category-header">🌊 Spectral Features (4)</div>
+                    <div class="category-content" id="spectralFeatures"></div>
+                </div>
+
+                <div class="feature-category">
+                    <div class="category-header">🎙️ Voice Quality (10)</div>
+                    <div class="category-content" id="voiceQualityFeatures"></div>
+                </div>
+
+                <div class="feature-category">
+                    <div class="category-header">⏰ Speech Timing (7)</div>
+                    <div class="category-content" id="timingFeatures"></div>
+                </div>
+
+                <div class="feature-category">
+                    <div class="category-header">➕ Additional Measures (3)</div>
+                    <div class="category-content" id="additionalFeatures"></div>
+                </div>
+            </div>
+
+            <div class="pronunciation-feedback" id="feedbackSection"></div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', path='/js/features.js') }}"></script>
+</body>
+</html>

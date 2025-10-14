@@ -1,6 +1,8 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
+from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 import shutil
 import time
 from pathlib import Path
@@ -36,6 +38,35 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Setup static files and templates
+BASE_DIR = Path(__file__).parent.parent
+FRONTEND_DIR = BASE_DIR / "frontend"
+STATIC_DIR = FRONTEND_DIR / "static"
+TEMPLATES_DIR = FRONTEND_DIR / "templates"
+
+# Create frontend directories if they don't exist
+STATIC_DIR.mkdir(parents=True, exist_ok=True)
+TEMPLATES_DIR.mkdir(parents=True, exist_ok=True)
+
+logger.info(f"Frontend directory: {FRONTEND_DIR}")
+logger.info(f"Static directory: {STATIC_DIR} (exists: {STATIC_DIR.exists()})")
+logger.info(f"Templates directory: {TEMPLATES_DIR} (exists: {TEMPLATES_DIR.exists()})")
+
+# Mount static files
+try:
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+    logger.info("✅ Static files mounted successfully")
+except Exception as e:
+    logger.error(f"❌ Failed to mount static files: {e}")
+
+# Initialize templates
+try:
+    templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+    logger.info("✅ Templates initialized successfully")
+except Exception as e:
+    logger.error(f"❌ Failed to initialize templates: {e}")
+    templates = None
+
 # Initialize services
 praat_service = None
 scoring_service = None
@@ -47,6 +78,13 @@ async def startup_event():
     global praat_service, scoring_service, audio_service
     
     logger.info("Starting HSKK Scoring System...")
+    
+    # Check if templates exist
+    if TEMPLATES_DIR.exists():
+        template_files = list(TEMPLATES_DIR.glob("*.html"))
+        logger.info(f"Found {len(template_files)} template files: {[f.name for f in template_files]}")
+    else:
+        logger.warning(f"Templates directory does not exist: {TEMPLATES_DIR}")
     
     try:
         # Initialize services without Docker client dependency
@@ -78,83 +116,42 @@ def get_services():
     return praat_service, scoring_service, audio_service
 
 @app.get("/", response_class=HTMLResponse)
-async def root():
-    return """
-    <!DOCTYPE html>
-    <html>
-        <head>
-            <title>HSKK Scoring System</title>
-            <meta charset="UTF-8">
-            <style>
-                body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: #f8f9fa; }
-                .container { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-                .header { text-align: center; color: #333; margin-bottom: 30px; }
-                .feature { margin: 15px 0; padding: 20px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #007bff; }
-                .link { display: inline-block; margin: 10px; padding: 12px 24px; background: #007bff; color: white; text-decoration: none; border-radius: 6px; transition: all 0.3s; }
-                .link:hover { background: #0056b3; transform: translateY(-2px); }
-                .demo-section { background: #e3f2fd; padding: 20px; border-radius: 8px; margin: 20px 0; }
-                .code { background: #263238; color: #ffffff; padding: 15px; border-radius: 5px; font-family: monospace; font-size: 14px; overflow-x: auto; }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <div class="header">
-                    <h1>🎤 HSKK Chinese Speaking Assessment</h1>
-                    <p><strong>汉语水平口语考试</strong> - Automated Chinese Speaking Proficiency Testing</p>
-                    <p>Powered by Praat Acoustic Analysis</p>
-                </div>
-                
-                <div class="feature">
-                    <h3>🎯 Key Features</h3>
-                    <ul>
-                        <li><strong>Professional Acoustic Analysis:</strong> Pitch, formants, voice quality using Praat</li>
-                        <li><strong>HSKK Standard Scoring:</strong> Elementary (初级), Intermediate (中级), Advanced (高级)</li>
-                        <li><strong>Comprehensive Assessment:</strong> Pronunciation, fluency, prosody evaluation</li>
-                        <li><strong>Real-time Processing:</strong> Upload audio and get instant detailed feedback</li>
-                    </ul>
-                </div>
-                
-                <div class="demo-section">
-                    <h3>🚀 Quick Test</h3>
-                    <p>Upload an audio file (WAV, MP3, M4A, FLAC) to test the system:</p>
-                    <div class="code">
-curl -X POST "http://localhost:8000/assess" \\
-  -F "audio_file=@your_speech.wav" \\
-  -F "target_level=intermediate"</div>
-                </div>
-                
-                <div class="feature">
-                    <h3>📊 Scoring Methodology</h3>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 15px;">
-                        <div>
-                            <h4>🎵 Pronunciation (35%)</h4>
-                            <p>发音准确度 - Accuracy, clarity, voice quality</p>
-                        </div>
-                        <div>
-                            <h4>⚡ Fluency (35%)</h4>
-                            <p>流利程度 - Speech rate, pauses, natural flow</p>
-                        </div>
-                        <div>
-                            <h4>📝 Grammar (15%)</h4>
-                            <p>语法正确性 - Sentence structure, syntax</p>
-                        </div>
-                        <div>
-                            <h4>📚 Vocabulary (15%)</h4>
-                            <p>词汇丰富度 - Word variety, appropriateness</p>
-                        </div>
-                    </div>
-                </div>
-                
-                <div style="text-align: center; margin-top: 30px;">
-                    <a href="/docs" class="link">📚 API Documentation</a>
-                    <a href="/health" class="link">🔍 System Health</a>
-                    <a href="/levels" class="link">📋 HSKK Levels</a>
-                    <a href="/debug" class="link">🛠️ Debug Info</a>
-                </div>
-            </div>
-        </body>
-    </html>
-    """
+async def root(request: Request):
+    """Main landing page"""
+    if templates is None:
+        return HTMLResponse(content="""
+            <h1>Template Error</h1>
+            <p>Templates directory not found. Please create frontend/templates/index.html</p>
+        """, status_code=500)
+    
+    try:
+        return templates.TemplateResponse("index.html", {"request": request})
+    except Exception as e:
+        logger.error(f"Error rendering index.html: {e}")
+        return HTMLResponse(content=f"""
+            <h1>Error Loading Page</h1>
+            <p>Error: {str(e)}</p>
+            <p>Please ensure frontend/templates/index.html exists</p>
+        """, status_code=500)
+
+@app.get("/features-tester", response_class=HTMLResponse)
+async def features_tester(request: Request):
+    """Features testing page"""
+    if templates is None:
+        return HTMLResponse(content="""
+            <h1>Template Error</h1>
+            <p>Templates directory not found. Please create frontend/templates/features_tester.html</p>
+        """, status_code=500)
+    
+    try:
+        return templates.TemplateResponse("features_tester.html", {"request": request})
+    except Exception as e:
+        logger.error(f"Error rendering features_tester.html: {e}")
+        return HTMLResponse(content=f"""
+            <h1>Error Loading Features Tester</h1>
+            <p>Error: {str(e)}</p>
+            <p>Please ensure frontend/templates/features_tester.html exists</p>
+        """, status_code=500)
 
 @app.post("/assess", response_model=HSKKAssessmentResponse)
 async def assess_hskk(
@@ -252,11 +249,20 @@ async def debug_info(services = Depends(get_services)):
             "audio_formats": SUPPORTED_FORMATS,
             "target_sample_rate": audio_svc.target_sr
         },
+        "frontend": {
+            "frontend_dir": str(FRONTEND_DIR),
+            "frontend_exists": FRONTEND_DIR.exists(),
+            "static_dir": str(STATIC_DIR),
+            "static_exists": STATIC_DIR.exists(),
+            "templates_dir": str(TEMPLATES_DIR),
+            "templates_exist": TEMPLATES_DIR.exists(),
+            "template_files": [f.name for f in TEMPLATES_DIR.glob("*.html")] if TEMPLATES_DIR.exists() else []
+        },
         "praat_connection": praat_svc.test_connection(),
         "container_debug": praat_svc.debug_container_state(),
         "directories": {
             "audio_input_exists": AUDIO_INPUT_DIR.exists(),
-            "audio_input_files": list(AUDIO_INPUT_DIR.glob("*")) if AUDIO_INPUT_DIR.exists() else [],
+            "audio_input_files": [f.name for f in AUDIO_INPUT_DIR.glob("*")] if AUDIO_INPUT_DIR.exists() else [],
         }
     }
     
@@ -294,7 +300,10 @@ async def health_check():
     dirs_status = all(dir_path.exists() for dir_path in required_dirs)
     status["components"]["storage"] = "healthy" if dirs_status else "unhealthy"
     
-    if not dirs_status:
+    # Check frontend
+    status["components"]["frontend"] = "healthy" if TEMPLATES_DIR.exists() else "missing"
+    
+    if not dirs_status or not TEMPLATES_DIR.exists():
         status["status"] = "degraded"
     
     return status

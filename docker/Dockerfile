@@ -17,6 +17,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app/ ./app/
 
+COPY frontend/ ./frontend/
+
 RUN mkdir -p data/audio_input data/audio_output data/praat_output data/models
 
 COPY .env* ./

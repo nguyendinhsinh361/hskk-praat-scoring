@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>HSKK Scoring System</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 800px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            background: #f8f9fa; 
+        }
+        .container { 
+            background: white; 
+            padding: 30px; 
+            border-radius: 10px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+        }
+        .header { 
+            text-align: center; 
+            color: #333; 
+            margin-bottom: 30px; 
+        }
+        .feature { 
+            margin: 15px 0; 
+            padding: 20px; 
+            background: #f8f9fa; 
+            border-radius: 8px; 
+            border-left: 4px solid #007bff; 
+        }
+        .link { 
+            display: inline-block; 
+            margin: 10px; 
+            padding: 12px 24px; 
+            background: #007bff; 
+            color: white; 
+            text-decoration: none; 
+            border-radius: 6px; 
+            transition: all 0.3s; 
+        }
+        .link:hover { 
+            background: #0056b3; 
+            transform: translateY(-2px); 
+        }
+        .demo-section { 
+            background: #e3f2fd; 
+            padding: 20px; 
+            border-radius: 8px; 
+            margin: 20px 0; 
+        }
+        .code { 
+            background: #263238; 
+            color: #ffffff; 
+            padding: 15px; 
+            border-radius: 5px; 
+            font-family: monospace; 
+            font-size: 14px; 
+            overflow-x: auto; 
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎤 HSKK Chinese Speaking Assessment</h1>
+            <p><strong>汉语水平口语考试</strong> - Automated Chinese Speaking Proficiency Testing</p>
+            <p>Powered by Praat Acoustic Analysis</p>
+        </div>
+        
+        <div class="feature">
+            <h3>🎯 Key Features</h3>
+            <ul>
+                <li><strong>Professional Acoustic Analysis:</strong> Pitch, formants, voice quality using Praat</li>
+                <li><strong>HSKK Standard Scoring:</strong> Elementary (初级), Intermediate (中级), Advanced (高级)</li>
+                <li><strong>Comprehensive Assessment:</strong> Pronunciation, fluency, prosody evaluation</li>
+                <li><strong>Real-time Processing:</strong> Upload audio and get instant detailed feedback</li>
+            </ul>
+        </div>
+        
+        <div class="demo-section">
+            <h3>🚀 Quick Test</h3>
+            <p>Upload an audio file (WAV, MP3, M4A, FLAC) to test the system:</p>
+            <div class="code">
+curl -X POST "http://localhost:8000/assess" \
+  -F "audio_file=@your_speech.wav" \
+  -F "target_level=intermediate"</div>
+        </div>
+        
+        <div class="feature">
+            <h3>📊 Scoring Methodology</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 15px;">
+                <div>
+                    <h4>🎵 Pronunciation (35%)</h4>
+                    <p>发音准确度 - Accuracy, clarity, voice quality</p>
+                </div>
+                <div>
+                    <h4>⚡ Fluency (35%)</h4>
+                    <p>流利程度 - Speech rate, pauses, natural flow</p>
+                </div>
+                <div>
+                    <h4>📝 Grammar (15%)</h4>
+                    <p>语法正确性 - Sentence structure, syntax</p>
+                </div>
+                <div>
+                    <h4>📚 Vocabulary (15%)</h4>
+                    <p>词汇丰富度 - Word variety, appropriateness</p>
+                </div>
+            </div>
+        </div>
+        
+        <div style="text-align: center; margin-top: 30px;">
+            <a href="/features-tester" class="link">🧪 Features Tester (43 Features)</a>
+            <a href="/docs" class="link">📚 API Documentation</a>
+            <a href="/health" class="link">🔍 System Health</a>
+            <a href="/levels" class="link">📋 HSKK Levels</a>
+            <a href="/debug" class="link">🛠️ Debug Info</a>
+        </div>
+    </div>
+</body>
+</html>
