@@ -115,15 +115,13 @@ class PraatService:
             features_dict = {}
             
             logger.info(f"Parsing features file: {features_file}")
-            
-            # Check file size
             file_size = features_file.stat().st_size
             logger.info(f"Features file size: {file_size} bytes")
             
             with open(features_file, 'r', encoding='utf-8') as f:
                 content = f.read()
                 logger.debug(f"Features file content:\n{content}")
-                
+            
             # Parse line by line
             with open(features_file, 'r', encoding='utf-8') as f:
                 for line_num, line in enumerate(f, 1):
@@ -137,7 +135,6 @@ class PraatService:
                             key = parts[0].strip()
                             value_str = parts[1].strip()
                             try:
-                                # Handle potential "undefined" or "--undefined--" values
                                 if value_str.lower() in ['undefined', '--undefined--', 'nan', 'inf', '-inf']:
                                     logger.warning(f"Undefined value for {key}, using default")
                                     features_dict[key] = 0.0
@@ -147,31 +144,79 @@ class PraatService:
                                 logger.warning(f"Could not parse value for {key}: '{value_str}' on line {line_num}")
                                 features_dict[key] = 0.0
             
-            logger.info(f"Parsed {len(features_dict)} features: {list(features_dict.keys())}")
+            logger.info(f"Parsed {len(features_dict)} features")
             
-            # Create AudioFeatures object with safe defaults and validation
-            duration = max(0.0, features_dict.get('duration', 0.0))
-            pitch_mean = max(50.0, min(500.0, features_dict.get('pitch_mean', 200.0)))  # Reasonable pitch range
-            pitch_std = max(0.0, features_dict.get('pitch_std', 30.0))
-            pitch_range = max(0.0, features_dict.get('pitch_range', 100.0))
+            # Safe value extraction with defaults
+            def safe_get(key, default, min_val=None, max_val=None):
+                val = features_dict.get(key, default)
+                if min_val is not None:
+                    val = max(min_val, val)
+                if max_val is not None:
+                    val = min(max_val, val)
+                return val
+            
+            duration = safe_get('duration', 0.0, 0.0)
             
             return AudioFeatures(
+                # Basic
                 duration=duration,
-                pitch_mean=pitch_mean,
-                pitch_std=pitch_std,
-                pitch_range=pitch_range,
-                f1_mean=max(200.0, min(1000.0, features_dict.get('f1_mean', 500.0))),
-                f2_mean=max(800.0, min(3000.0, features_dict.get('f2_mean', 1500.0))),
-                f3_mean=max(1500.0, min(4000.0, features_dict.get('f3_mean', 2500.0))),
-                intensity_mean=max(0.0, min(100.0, features_dict.get('intensity_mean', 60.0))),
-                intensity_std=max(0.0, features_dict.get('intensity_std', 5.0)),
-                spectral_centroid=max(100.0, features_dict.get('spectral_centroid', 1000.0)),
-                hnr_mean=max(0.0, min(40.0, features_dict.get('hnr_mean', 20.0))),
-                jitter=max(0.0, min(0.1, features_dict.get('jitter', 0.01))),
-                shimmer=max(0.0, min(1.0, features_dict.get('shimmer', 0.1))),
-                speech_rate=max(0.0, features_dict.get('speech_rate', 180.0)),
-                speech_duration=max(0.0, min(duration, features_dict.get('speech_duration', duration))),
-                pause_ratio=max(0.0, min(1.0, features_dict.get('pause_ratio', 0.1)))
+                
+                # Pitch
+                pitch_mean=safe_get('pitch_mean', 200.0, 50.0, 500.0),
+                pitch_std=safe_get('pitch_std', 30.0, 0.0),
+                pitch_range=safe_get('pitch_range', 100.0, 0.0),
+                pitch_min=safe_get('pitch_min', 150.0, 50.0, 500.0),
+                pitch_max=safe_get('pitch_max', 250.0, 50.0, 500.0),
+                pitch_median=safe_get('pitch_median', 200.0, 50.0, 500.0),
+                pitch_quantile_25=safe_get('pitch_quantile_25', 180.0, 50.0, 500.0),
+                pitch_quantile_75=safe_get('pitch_quantile_75', 220.0, 50.0, 500.0),
+                
+                # Formants
+                f1_mean=safe_get('f1_mean', 500.0, 200.0, 1000.0),
+                f1_std=safe_get('f1_std', 50.0, 0.0),
+                f2_mean=safe_get('f2_mean', 1500.0, 800.0, 3000.0),
+                f2_std=safe_get('f2_std', 100.0, 0.0),
+                f3_mean=safe_get('f3_mean', 2500.0, 1500.0, 4000.0),
+                f3_std=safe_get('f3_std', 150.0, 0.0),
+                f4_mean=safe_get('f4_mean', 3500.0, 2500.0, 5000.0),
+                f4_std=safe_get('f4_std', 200.0, 0.0),
+                
+                # Intensity
+                intensity_mean=safe_get('intensity_mean', 60.0, 0.0, 100.0),
+                intensity_std=safe_get('intensity_std', 5.0, 0.0),
+                intensity_min=safe_get('intensity_min', 40.0, 0.0, 100.0),
+                intensity_max=safe_get('intensity_max', 80.0, 0.0, 100.0),
+                
+                # Spectral
+                spectral_centroid=safe_get('spectral_centroid', 1000.0, 100.0),
+                spectral_std=safe_get('spectral_std', 500.0, 0.0),
+                spectral_skewness=safe_get('spectral_skewness', 0.0),
+                spectral_kurtosis=safe_get('spectral_kurtosis', 3.0),
+                
+                # Voice quality
+                hnr_mean=safe_get('hnr_mean', 20.0, 0.0, 40.0),
+                hnr_std=safe_get('hnr_std', 2.0, 0.0),
+                jitter_local=safe_get('jitter_local', 0.01, 0.0, 0.1),
+                jitter_rap=safe_get('jitter_rap', 0.01, 0.0, 0.1),
+                jitter_ppq5=safe_get('jitter_ppq5', 0.01, 0.0, 0.1),
+                shimmer_local=safe_get('shimmer_local', 0.1, 0.0, 1.0),
+                shimmer_apq3=safe_get('shimmer_apq3', 0.1, 0.0, 1.0),
+                shimmer_apq5=safe_get('shimmer_apq5', 0.1, 0.0, 1.0),
+                shimmer_apq11=safe_get('shimmer_apq11', 0.1, 0.0, 1.0),
+                
+                # Speech timing
+                speech_rate=safe_get('speech_rate', 180.0, 0.0),
+                articulation_rate=safe_get('articulation_rate', 200.0, 0.0),
+                speech_duration=safe_get('speech_duration', duration, 0.0, duration),
+                pause_duration=safe_get('pause_duration', 0.0, 0.0),
+                pause_ratio=safe_get('pause_ratio', 0.1, 0.0, 1.0),
+                num_pauses=int(safe_get('num_pauses', 0, 0)),
+                mean_pause_duration=safe_get('mean_pause_duration', 0.0, 0.0),
+                
+                # Additional
+                cog=safe_get('cog', 1000.0, 0.0),
+                slope=safe_get('slope', 0.0),
+                spread=safe_get('spread', 0.0)
             )
             
         except Exception as e:

@@ -60,7 +60,7 @@ class HSKKScoringService:
         )
     
     def _calculate_pronunciation_score(self, features: AudioFeatures, 
-                                     thresholds: Dict) -> float:
+                                 thresholds: Dict) -> float:
         """Calculate pronunciation score based on acoustic features"""
         score = 100.0
         
@@ -72,12 +72,13 @@ class HSKKScoringService:
         if features.hnr_mean < thresholds['hnr_min']:
             score -= 15 * (1 - features.hnr_mean / thresholds['hnr_min'])
         
-        # Jitter and shimmer (voice stability)
-        if features.jitter > 0.01:  # Normal jitter < 1%
-            score -= 10 * min(features.jitter / 0.01, 2)
-            
-        if features.shimmer > 0.1:  # Normal shimmer < 10%
-            score -= 10 * min(features.shimmer / 0.1, 2)
+        # Jitter (voice stability) - sử dụng jitter_local
+        if features.jitter_local > 0.01:  # Normal jitter < 1%
+            score -= 10 * min(features.jitter_local / 0.01, 2)
+        
+        # Shimmer (amplitude stability) - sử dụng shimmer_local
+        if features.shimmer_local > 0.1:  # Normal shimmer < 10%
+            score -= 10 * min(features.shimmer_local / 0.1, 2)
         
         # Formant clarity (approximation)
         if features.f1_mean < 300 or features.f1_mean > 1000:
