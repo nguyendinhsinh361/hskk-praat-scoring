@@ -1,7 +1,7 @@
 <!DOCTYPE html>
-<html>
+<html lang="vi">
 <head>
-    <title>HSKK Scoring System</title>
+    <title>Hệ Thống Chấm Điểm HSKK</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
@@ -22,6 +22,9 @@
             text-align: center; 
             color: #333; 
             margin-bottom: 30px; 
+        }
+        .header h1 { 
+            color: #007bff; 
         }
         .feature { 
             margin: 15px 0; 
@@ -59,63 +62,118 @@
             font-size: 14px; 
             overflow-x: auto; 
         }
+        .scoring-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 15px;
+        }
+        .scoring-item {
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            border: 2px solid #e9ecef;
+        }
+        .scoring-item h4 {
+            color: #007bff;
+            margin-bottom: 8px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🎤 HSKK Chinese Speaking Assessment</h1>
-            <p><strong>汉语水平口语考试</strong> - Automated Chinese Speaking Proficiency Testing</p>
-            <p>Powered by Praat Acoustic Analysis</p>
+            <h1>🎤 Đánh Giá Kỹ Năng Nói Tiếng Trung HSKK</h1>
+            <p><strong>汉语水平口语考试</strong> - Kiểm Tra Trình Độ Tiếng Trung Tự Động</p>
+            <p style="color: #666;">Được hỗ trợ bởi Phân Tích Âm Học Praat</p>
         </div>
         
         <div class="feature">
-            <h3>🎯 Key Features</h3>
+            <h3>🎯 Tính Năng Chính (Key Features)</h3>
             <ul>
-                <li><strong>Professional Acoustic Analysis:</strong> Pitch, formants, voice quality using Praat</li>
-                <li><strong>HSKK Standard Scoring:</strong> Elementary (初级), Intermediate (中级), Advanced (高级)</li>
-                <li><strong>Comprehensive Assessment:</strong> Pronunciation, fluency, prosody evaluation</li>
-                <li><strong>Real-time Processing:</strong> Upload audio and get instant detailed feedback</li>
+                <li><strong>Phân Tích Âm Học Chuyên Nghiệp:</strong> 43 đặc trưng âm học sử dụng Praat (Pitch, Formants, Voice Quality)</li>
+                <li><strong>Chấm Điểm Chuẩn HSKK:</strong> Sơ cấp (初级), Trung cấp (中级), Cao cấp (高级)</li>
+                <li><strong>Đánh Giá Toàn Diện:</strong> Đánh giá phát âm, độ lưu loát và ngữ điệu</li>
+                <li><strong>Xử Lý Thời Gian Thực:</strong> Tải lên âm thanh và nhận phản hồi chi tiết ngay lập tức</li>
             </ul>
         </div>
         
         <div class="demo-section">
-            <h3>🚀 Quick Test</h3>
-            <p>Upload an audio file (WAV, MP3, M4A, FLAC) to test the system:</p>
-            <div class="code">
-curl -X POST "http://localhost:8000/assess" \
+            <h3>🚀 Kiểm Tra Nhanh (Quick Test)</h3>
+            <p>Tải lên file âm thanh (WAV, MP3, M4A, FLAC) để kiểm tra hệ thống:</p>
+            <div class="code">curl -X POST "http://localhost:8000/assess" \
   -F "audio_file=@your_speech.wav" \
   -F "target_level=intermediate"</div>
         </div>
         
         <div class="feature">
-            <h3>📊 Scoring Methodology</h3>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 15px;">
-                <div>
-                    <h4>🎵 Pronunciation (35%)</h4>
-                    <p>发音准确度 - Accuracy, clarity, voice quality</p>
+            <h3>📊 Phương Pháp Chấm Điểm (Scoring Methodology)</h3>
+            <div class="scoring-grid">
+                <div class="scoring-item">
+                    <h4>🎵 Phát Âm - 35%</h4>
+                    <p><strong>发音准确度 (Pronunciation)</strong></p>
+                    <p style="font-size: 0.9em; color: #666;">Độ chính xác, rõ ràng, chất lượng giọng nói</p>
                 </div>
-                <div>
-                    <h4>⚡ Fluency (35%)</h4>
-                    <p>流利程度 - Speech rate, pauses, natural flow</p>
+                <div class="scoring-item">
+                    <h4>⚡ Độ Lưu Loát - 35%</h4>
+                    <p><strong>流利程度 (Fluency)</strong></p>
+                    <p style="font-size: 0.9em; color: #666;">Tốc độ nói, khoảng dừng, dòng chảy tự nhiên</p>
                 </div>
-                <div>
-                    <h4>📝 Grammar (15%)</h4>
-                    <p>语法正确性 - Sentence structure, syntax</p>
+                <div class="scoring-item">
+                    <h4>📝 Ngữ Pháp - 15%</h4>
+                    <p><strong>语法正确性 (Grammar)</strong></p>
+                    <p style="font-size: 0.9em; color: #666;">Cấu trúc câu, cú pháp</p>
                 </div>
-                <div>
-                    <h4>📚 Vocabulary (15%)</h4>
-                    <p>词汇丰富度 - Word variety, appropriateness</p>
+                <div class="scoring-item">
+                    <h4>📚 Từ Vựng - 15%</h4>
+                    <p><strong>词汇丰富度 (Vocabulary)</strong></p>
+                    <p style="font-size: 0.9em; color: #666;">Sự đa dạng từ, phù hợp ngữ cảnh</p>
                 </div>
+            </div>
+        </div>
+
+        <div class="feature">
+            <h3>📋 Tiêu Chí Đánh Giá HSKK</h3>
+            <div style="margin-top: 15px;">
+                <p><strong>🔰 Sơ Cấp (初级 Elementary):</strong></p>
+                <ul style="margin-left: 20px; color: #666;">
+                    <li>Độ chính xác phát âm cơ bản</li>
+                    <li>Cấu trúc câu đơn giản</li>
+                    <li>Tốc độ: 60-120 âm tiết/phút</li>
+                </ul>
+                
+                <p style="margin-top: 15px;"><strong>🔸 Trung Cấp (中级 Intermediate):</strong></p>
+                <ul style="margin-left: 20px; color: #666;">
+                    <li>Phát âm rõ ràng với độ lưu loát tốt</li>
+                    <li>Các mẫu câu phức tạp</li>
+                    <li>Tốc độ: 120-180 âm tiết/phút</li>
+                </ul>
+                
+                <p style="margin-top: 15px;"><strong>⭐ Cao Cấp (高级 Advanced):</strong></p>
+                <ul style="margin-left: 20px; color: #666;">
+                    <li>Phát âm gần như người bản xứ</li>
+                    <li>Ngữ điệu và giọng nói tự nhiên</li>
+                    <li>Tốc độ: 150-220 âm tiết/phút</li>
+                </ul>
             </div>
         </div>
         
         <div style="text-align: center; margin-top: 30px;">
-            <a href="/features-tester" class="link">🧪 Features Tester (43 Features)</a>
-            <a href="/docs" class="link">📚 API Documentation</a>
-            <a href="/health" class="link">🔍 System Health</a>
-            <a href="/levels" class="link">📋 HSKK Levels</a>
-            <a href="/debug" class="link">🛠️ Debug Info</a>
+            <a href="/features-tester" class="link">🧪 Công Cụ Kiểm Tra (43 Đặc Trưng)</a>
+            <a href="/docs" class="link">📚 Tài Liệu API</a>
+            <a href="/health" class="link">🔍 Tình Trạng Hệ Thống</a>
+            <a href="/levels" class="link">📋 Cấp Độ HSKK</a>
+            <a href="/debug" class="link">🛠️ Thông Tin Debug</a>
+        </div>
+        
+        <div style="margin-top: 30px; padding: 20px; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107;">
+            <h3 style="color: #856404; margin-bottom: 10px;">ℹ️ Hướng Dẫn Sử Dụng</h3>
+            <ol style="color: #856404; margin-left: 20px;">
+                <li>Nhấp vào "Công Cụ Kiểm Tra" để mở giao diện phân tích</li>
+                <li>Tải lên file âm thanh của bạn (WAV, MP3, M4A, FLAC)</li>
+                <li>Chọn cấp độ HSKK mục tiêu</li>
+                <li>Nhấn "Phân Tích" và xem kết quả chi tiết với 43 đặc trưng âm học</li>
+            </ol>
         </div>
     </div>
 </body>

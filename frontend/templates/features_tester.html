@@ -1,36 +1,36 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HSKK Praat Features Analyzer</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='/css/features.css') }}">
+    <title>Phân Tích Đặc Trưng Âm Thanh HSKK - Praat</title>
+    <link rel="stylesheet" href="/static/css/features.css">
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🎤 HSKK Praat Features Analyzer</h1>
-            <p>汉语水平口语考试 - 43 Acoustic Features Analysis</p>
-            <p style="font-size: 0.9em; margin-top: 10px;">Upload audio file to extract comprehensive Praat acoustic features</p>
+            <h1>🎤 Phân Tích Đặc Trưng Âm Thanh HSKK</h1>
+            <p><strong>汉语水平口语考试</strong> - Đánh Giá Trình Độ Nói Tiếng Trung</p>
+            <p style="font-size: 0.9em; margin-top: 10px;">Tải lên file âm thanh để trích xuất 43 đặc trưng âm học toàn diện bằng Praat</p>
         </div>
 
         <div class="upload-section">
             <div class="upload-box" id="uploadBox">
                 <div class="upload-icon">📁</div>
-                <h3>Drag & Drop Audio File Here</h3>
-                <p style="color: #666; margin: 10px 0;">or click to browse</p>
-                <p style="color: #999; font-size: 0.9em;">Supported formats: WAV, MP3, M4A, FLAC</p>
+                <h3>Kéo & Thả File Âm Thanh Vào Đây</h3>
+                <p style="color: #666; margin: 10px 0;">hoặc nhấp để chọn file</p>
+                <p style="color: #999; font-size: 0.9em;">Định dạng hỗ trợ: WAV, MP3, M4A, FLAC</p>
                 <input type="file" id="fileInput" class="file-input" accept=".wav,.mp3,.m4a,.flac">
             </div>
 
             <div class="level-selector">
-                <button class="level-btn" data-level="elementary">初级 Elementary</button>
-                <button class="level-btn active" data-level="intermediate">中级 Intermediate</button>
-                <button class="level-btn" data-level="advanced">高级 Advanced</button>
+                <button class="level-btn" data-level="elementary">初级 Sơ Cấp (Elementary)</button>
+                <button class="level-btn active" data-level="intermediate">中级 Trung Cấp (Intermediate)</button>
+                <button class="level-btn" data-level="advanced">高级 Cao Cấp (Advanced)</button>
             </div>
 
             <div style="text-align: center;">
-                <button class="btn" id="analyzeBtn" disabled>🔬 Analyze Audio Features</button>
+                <button class="btn" id="analyzeBtn" disabled>🔬 Phân Tích Đặc Trưng Âm Thanh</button>
             </div>
 
             <div id="selectedFile" style="text-align: center; margin-top: 20px; color: #666;"></div>
@@ -38,80 +38,80 @@
 
         <div class="loading" id="loading">
             <div class="spinner"></div>
-            <h3>Analyzing Audio with Praat...</h3>
-            <p style="color: #666; margin-top: 10px;">Extracting 43 acoustic features</p>
+            <h3>Đang Phân Tích Âm Thanh Với Praat...</h3>
+            <p style="color: #666; margin-top: 10px;">Đang trích xuất 43 đặc trưng âm học</p>
         </div>
 
         <div class="error" id="error"></div>
 
         <div class="results" id="results">
             <div class="score-card">
-                <h2>Overall HSKK Score</h2>
+                <h2>Điểm HSKK Tổng Thể (Overall Score)</h2>
                 <div class="score-value" id="overallScore">--</div>
                 <div id="levelAchieved" style="font-size: 1.3em; opacity: 0.9;">--</div>
             </div>
 
             <div class="score-breakdown">
                 <div class="score-item">
-                    <h4>🎵 Pronunciation</h4>
+                    <h4>🎵 Phát Âm (Pronunciation)</h4>
                     <div class="value" id="pronunciationScore">--</div>
                 </div>
                 <div class="score-item">
-                    <h4>⚡ Fluency</h4>
+                    <h4>⚡ Lưu Loát (Fluency)</h4>
                     <div class="value" id="fluencyScore">--</div>
                 </div>
                 <div class="score-item">
-                    <h4>📝 Grammar</h4>
+                    <h4>📝 Ngữ Pháp (Grammar)</h4>
                     <div class="value" id="grammarScore">--</div>
                 </div>
                 <div class="score-item">
-                    <h4>📚 Vocabulary</h4>
+                    <h4>📚 Từ Vựng (Vocabulary)</h4>
                     <div class="value" id="vocabularyScore">--</div>
                 </div>
             </div>
 
             <div class="audio-info" id="audioInfo"></div>
 
-            <h2 style="margin: 30px 0 20px; color: #333;">📊 Detailed Acoustic Features (43 Features)</h2>
+            <h2 style="margin: 30px 0 20px; color: #333;">📊 Chi Tiết 43 Đặc Trưng Âm Học (Acoustic Features)</h2>
 
             <div class="features-grid">
                 <div class="feature-category">
-                    <div class="category-header">⏱️ Basic Information</div>
+                    <div class="category-header">⏱️ Thông Tin Cơ Bản (Basic Information)</div>
                     <div class="category-content" id="basicFeatures"></div>
                 </div>
 
                 <div class="feature-category">
-                    <div class="category-header">🎵 Pitch Features (8)</div>
+                    <div class="category-header">🎵 Đặc Trưng Cao Độ - 8 (Pitch Features)</div>
                     <div class="category-content" id="pitchFeatures"></div>
                 </div>
 
                 <div class="feature-category">
-                    <div class="category-header">📊 Formants F1-F4 (8)</div>
+                    <div class="category-header">📊 Formant F1-F4 - 8 (Formants)</div>
                     <div class="category-content" id="formantFeatures"></div>
                 </div>
 
                 <div class="feature-category">
-                    <div class="category-header">🔊 Intensity (4)</div>
+                    <div class="category-header">🔊 Cường Độ - 4 (Intensity)</div>
                     <div class="category-content" id="intensityFeatures"></div>
                 </div>
 
                 <div class="feature-category">
-                    <div class="category-header">🌊 Spectral Features (4)</div>
+                    <div class="category-header">🌊 Đặc Trưng Phổ - 4 (Spectral Features)</div>
                     <div class="category-content" id="spectralFeatures"></div>
                 </div>
 
                 <div class="feature-category">
-                    <div class="category-header">🎙️ Voice Quality (10)</div>
+                    <div class="category-header">🎙️ Chất Lượng Giọng Nói - 10 (Voice Quality)</div>
                     <div class="category-content" id="voiceQualityFeatures"></div>
                 </div>
 
                 <div class="feature-category">
-                    <div class="category-header">⏰ Speech Timing (7)</div>
+                    <div class="category-header">⏰ Thời Gian Phát Âm - 7 (Speech Timing)</div>
                     <div class="category-content" id="timingFeatures"></div>
                 </div>
 
                 <div class="feature-category">
-                    <div class="category-header">➕ Additional Measures (3)</div>
+                    <div class="category-header">➕ Đo Lường Bổ Sung - 3 (Additional Measures)</div>
                     <div class="category-content" id="additionalFeatures"></div>
                 </div>
             </div>
@@ -120,6 +120,6 @@
         </div>
     </div>
 
-    <script src="{{ url_for('static', path='/js/features.js') }}"></script>
+    <script src="/static/js/features.js"></script>
 </body>
 </html>
