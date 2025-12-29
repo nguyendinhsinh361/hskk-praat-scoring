@@ -8,6 +8,9 @@ AUDIO_INPUT_DIR = DATA_DIR / "audio_input"
 AUDIO_OUTPUT_DIR = DATA_DIR / "audio_output"
 PRAAT_OUTPUT_DIR = DATA_DIR / "praat_output"
 MODELS_DIR = DATA_DIR / "models"
+PRAAT_TIMEOUT = 10
+MAX_AUDIO_DURATION = 180
+MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
 
 # Create directories if they don't exist
 for dir_path in [AUDIO_INPUT_DIR, AUDIO_OUTPUT_DIR, PRAAT_OUTPUT_DIR, MODELS_DIR]:
@@ -22,6 +25,14 @@ SUPPORTED_FORMATS = [".wav", ".mp3", ".m4a", ".flac"]
 TARGET_SAMPLE_RATE = 16000
 
 # HSKK Scoring thresholds
+
+SCORING_WEIGHTS = {
+    "pronunciation": 0.35,
+    "fluency": 0.35,
+    "grammar": 0.15,
+    "vocabulary": 0.15
+}
+
 HSKK_THRESHOLDS = {
     "elementary": {
         "pitch_range_min": 50,

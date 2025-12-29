@@ -85,7 +85,6 @@ class HSKKScore(BaseModel):
     
 class HSKKAssessmentRequest(BaseModel):
     audio_file: str
-    target_level: Optional[HSKKLevel] = HSKKLevel.INTERMEDIATE
     reference_text: Optional[str] = None
     
 class HSKKAssessmentResponse(BaseModel):

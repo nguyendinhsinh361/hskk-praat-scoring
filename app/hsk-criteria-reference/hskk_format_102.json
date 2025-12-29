@@ -1,0 +1,656 @@
+{
+  "exam_level": "Trung cấp",
+  "tasks": [
+    {
+      "task_code": "HSKKTC1",
+      "task_name": "Nghe và nhắc lại",
+      "format": {
+        "question_count": 10,
+        "points_per_question": 3,
+        "total_points": 30
+      },
+      "criteria": [
+        {
+          "name": "Khả năng hoàn thành yêu cầu của bài (Task achievement)",
+          "data_source": "ai",
+          "data_source_note": "Yêu cầu speech-to-text để so sánh nội dung câu trả lời với câu gốc",
+          "ai_requirements": {
+            "stt_needed": true,
+            "comparison_type": "text_similarity",
+            "description": "So sánh % nội dung được nhắc lại so với câu gốc"
+          },
+          "max_score_per_question": 1.5,
+          "scoring_rules": [
+            {
+              "condition": "Nhắc lại chính xác 100% nội dung hoặc ≥90% nội dung câu gốc",
+              "score": 1.5
+            },
+            {
+              "condition": "Nhắc lại ≥ 70% và < 90% nội dung câu gốc",
+              "score": 1.0
+            },
+            {
+              "condition": "Nhắc lại ≥ 50% và < 70% nội dung câu gốc",
+              "score": 0.5
+            },
+            {
+              "condition": "Nhắc lại < 50% nội dung câu gốc",
+              "score": 0.0
+            }
+          ],
+          "feedback_templates": {
+            "overview_assessment": {
+              "high_score": "Câu được lặp lại gần như trùng khớp với bản gốc, không xuất hiện nhiều lỗi bỏ sót hoặc thay đổi trật tự. Phát âm chuẩn xác, ngữ điệu tự nhiên.",
+              "medium_score": "Thí sinh cơ bản hiểu và lặp lại được nội dung chính của câu, tuy nhiên vẫn tồn tại lỗi sai hoặc thiếu sót thông tin. Phát âm nhìn chung rõ ràng nhưng chưa đồng đều.",
+              "low_score": "Thí sinh gặp khó khăn trong việc tái hiện chính xác câu nghe được. Câu trả lời có sai lệch đáng kể về nội dung hoặc cấu trúc."
+            }
+          },
+          "recommendations": {
+            "missing_info": "Luyện nghe theo cụm, luyện ghi nhớ thông tin bằng cách nghe thụ động, nghe tin tức.",
+            "pronunciation_issue": "Cần nắm chắc kiến thức ngữ âm, luyện tập nhóm âm sai, luyện thanh 1 và thanh 4, kết hợp nghe bản mẫu và ghi âm phản chiếu.",
+            "fluency_issue": "Cải thiện bằng cách luyện tập shadowing, tập giữ nhịp nói đều, ngắt nghỉ đúng điệu."
+          }
+        },
+        {
+          "name": "Phát âm (Pronunciation)",
+          "data_source": "praat",
+          "data_source_note": "Sử dụng các thông số âm thanh từ Praat để đánh giá chất lượng phát âm",
+          "praat_metrics": {
+            "primary": ["hnr_mean", "jitter_local", "shimmer_local"],
+            "secondary": ["f1_mean", "f2_mean", "pitch_range", "pitch_std"],
+            "description": {
+              "hnr_mean": "Tỷ lệ hài hòa trên nhiễu - đo độ trong của giọng (HNR cao = giọng trong)",
+              "jitter_local": "Biến thiên tần số cơ bản - đo độ ổn định của giọng",
+              "shimmer_local": "Biến thiên biên độ - đo độ đều của âm lượng",
+              "f1_mean": "Formant 1 - liên quan đến độ mở của nguyên âm",
+              "f2_mean": "Formant 2 - liên quan đến vị trí lưỡi trước/sau",
+              "pitch_range": "Phạm vi cao độ - đo ngữ điệu",
+              "pitch_std": "Độ lệch chuẩn cao độ - đo sự biến thiên ngữ điệu"
+            },
+            "thresholds": {
+              "hnr_excellent": 20,
+              "hnr_good": 15,
+              "hnr_poor": 10,
+              "jitter_excellent": 0.01,
+              "jitter_acceptable": 0.015,
+              "jitter_poor": 0.02,
+              "shimmer_excellent": 0.05,
+              "shimmer_acceptable": 0.08,
+              "shimmer_poor": 0.12
+            }
+          },
+          "max_score_per_question": 1.0,
+          "scoring_rules": [
+            {
+              "condition": "Không có lỗi sai, phát âm rõ ràng, tự nhiên",
+              "score": 1.0,
+              "praat_condition": "hnr_mean >= 20 AND jitter_local <= 0.01 AND shimmer_local <= 0.05"
+            },
+            {
+              "condition": "Mỗi lỗi phát âm",
+              "score_deduction": -0.25,
+              "praat_note": "Trừ điểm dựa trên mức độ sai lệch so với ngưỡng lý tưởng"
+            }
+          ],
+          "feedback_templates": {
+            "no_error": "Phát âm rõ ràng, không có lỗi sai. Giọng đọc tự nhiên, gần với chuẩn phổ thông.",
+            "has_error": "Mức độ kiểm soát cơ quan phát âm chưa tốt. Xuất hiện lỗi sai ở các âm cụ thể."
+          }
+        },
+        {
+          "name": "Độ trôi chảy (Fluency)",
+          "data_source": "praat",
+          "data_source_note": "Sử dụng các thông số timing từ Praat để đánh giá độ trôi chảy",
+          "praat_metrics": {
+            "primary": ["speech_rate", "pause_ratio", "num_pauses", "mean_pause_duration"],
+            "secondary": ["articulation_rate", "speech_duration", "pause_duration"],
+            "description": {
+              "speech_rate": "Tốc độ nói (âm tiết/phút) - bao gồm cả thời gian ngắt nghỉ",
+              "pause_ratio": "Tỷ lệ thời gian ngắt nghỉ / tổng thời gian",
+              "num_pauses": "Số lượng lần ngắt nghỉ",
+              "mean_pause_duration": "Thời lượng trung bình mỗi lần ngắt nghỉ (giây)",
+              "articulation_rate": "Tốc độ phát âm (không tính ngắt nghỉ)",
+              "speech_duration": "Tổng thời gian nói thực tế",
+              "pause_duration": "Tổng thời gian ngắt nghỉ"
+            },
+            "thresholds": {
+              "speech_rate_slow": 100,
+              "speech_rate_ideal_min": 150,
+              "speech_rate_ideal_max": 220,
+              "speech_rate_fast": 280,
+              "pause_ratio_excellent": 0.15,
+              "pause_ratio_acceptable": 0.25,
+              "pause_ratio_poor": 0.35,
+              "mean_pause_excellent": 0.3,
+              "mean_pause_acceptable": 0.6
+            },
+            "issue_detection": {
+              "ngat_nghi_sai": {
+                "description": "Ngắt nghỉ sai vị trí hoặc quá dài",
+                "detection": "pause_ratio > 0.25 OR mean_pause_duration > 0.6"
+              },
+              "ngap_ngung": {
+                "description": "Ngập ngừng - nhiều lần dừng ngắn",
+                "detection": "num_pauses > 10 AND mean_pause_duration < 0.5"
+              },
+              "lap_tu": {
+                "description": "Lặp từ - cần speech-to-text để phát hiện",
+                "detection": "requires_stt"
+              },
+              "toc_do_khong_on_dinh": {
+                "description": "Tốc độ nói không ổn định",
+                "detection": "abs(articulation_rate - speech_rate) > 50"
+              }
+            }
+          },
+          "max_score_per_question": 0.5,
+          "scoring_rules": [
+            {
+              "condition": "Không có lỗi (Tốc độ ổn định, ngữ điệu tự nhiên)",
+              "score": 0.5,
+              "praat_condition": "150 <= speech_rate <= 220 AND pause_ratio <= 0.15",
+              "detected_issues": []
+            },
+            {
+              "condition": "Ngắt nghỉ sai",
+              "score": 0.25,
+              "praat_condition": "pause_ratio > 0.25 OR mean_pause_duration > 0.6",
+              "detected_issues": ["ngat_nghi_sai"]
+            },
+            {
+              "condition": "Ngập ngừng",
+              "score": 0.25,
+              "praat_condition": "num_pauses > 10 AND mean_pause_duration < 0.5",
+              "detected_issues": ["ngap_ngung"]
+            },
+            {
+              "condition": "Lặp từ",
+              "score": 0.25,
+              "requires_stt": true,
+              "detected_issues": ["lap_tu"]
+            },
+            {
+              "condition": "Tốc độ không ổn định",
+              "score": 0.25,
+              "praat_condition": "abs(articulation_rate - speech_rate) > 50",
+              "detected_issues": ["toc_do_khong_on_dinh"]
+            }
+          ],
+          "feedback_templates": {
+            "no_error": "Tốc độ lời nói ổn định, không có ngập ngừng đáng kể. Ngữ điệu tự nhiên.",
+            "has_error": "Mạch lời nói rời rạc, thiếu sự điều tiết về nhịp và cao độ. Lời nói thiếu tính tự nhiên."
+          }
+        }
+      ]
+    },
+    {
+      "task_code": "HSKKTC2",
+      "task_name": "Mô tả tranh (đoạn văn ngắn)",
+      "format": {
+        "question_count": 2,
+        "points_per_question": 15,
+        "total_points": 30
+      },
+      "criteria": [
+        {
+          "name": "Khả năng hoàn thành yêu cầu của bài (Task achievement)",
+          "data_source": "ai",
+          "data_source_note": "Yêu cầu speech-to-text, NLP và vision để đánh giá nội dung so với tranh",
+          "ai_requirements": {
+            "stt_needed": true,
+            "nlp_needed": true,
+            "vision_needed": true,
+            "analysis_type": ["image_description_relevance", "sentence_count"],
+            "description": "Đánh giá nội dung có liên quan đến tranh và đủ độ dài (≥3 câu)"
+          },
+          "max_score_per_question": 5.0,
+          "sub_criteria": [
+            {
+              "aspect": "Nội dung",
+              "rules": [
+                {
+                  "condition": "Phần trả lời có nội dung liên quan đến ảnh",
+                  "score": 3.5
+                },
+                {
+                  "condition": "Phần trả lời KHÔNG liên quan đến ảnh",
+                  "score": 0.0
+                }
+              ]
+            },
+            {
+              "aspect": "Độ dài",
+              "rules": [
+                {
+                  "condition": "Đoạn văn ngắn (≥ 3 câu nói)",
+                  "score": 1.5
+                },
+                {
+                  "condition": "Không phải đoạn văn (< 3 câu nói)",
+                  "score": 0.0
+                }
+              ]
+            }
+          ],
+          "feedback_templates": {
+            "overview_assessment": {
+              "high_score": "Phần trả lời đã mô tả chính xác nội dung bức tranh, sử dụng ngôn ngữ linh hoạt, mạch lạc.",
+              "medium_score": "Phần trả lời liên quan đến ảnh và có cấu trúc hoàn chỉnh nhưng giọng nói chưa tự nhiên. Một số lỗi gây ảnh hưởng nội dung.",
+              "low_score": "Phần trả lời rời rạc, thiếu liên kết, nội dung không quá liên quan đến tranh."
+            }
+          },
+          "improvement_plan": {
+            "model_answer": "Cung cấp bài nói mẫu đảm bảo 6 tiêu chí, sử dụng từ vựng HSK1-3, cấu trúc mở-thân-kết mạch lạc.",
+            "practice_recommendation": "Luyện tập dựa trên các lỗi sai cụ thể (ngữ pháp, phát âm, biểu đạt)."
+          }
+        },
+        {
+          "name": "Phát âm (Pronunciation)",
+          "data_source": "praat",
+          "data_source_note": "Sử dụng các thông số âm thanh từ Praat để đánh giá chất lượng phát âm",
+          "praat_metrics": {
+            "primary": ["hnr_mean", "jitter_local", "shimmer_local"],
+            "secondary": ["f1_mean", "f2_mean", "pitch_range", "pitch_std"],
+            "thresholds": {
+              "hnr_excellent": 20,
+              "hnr_good": 15,
+              "hnr_poor": 10,
+              "jitter_excellent": 0.01,
+              "jitter_acceptable": 0.015,
+              "shimmer_excellent": 0.05,
+              "shimmer_acceptable": 0.08
+            }
+          },
+          "max_score_per_question": 3.0,
+          "scoring_rules": [
+            {
+              "condition": "Không có lỗi sai",
+              "score": 3.0,
+              "praat_condition": "hnr_mean >= 20 AND jitter_local <= 0.01 AND shimmer_local <= 0.05"
+            },
+            {
+              "condition": "Mỗi lỗi phát âm",
+              "score_deduction": -0.25,
+              "praat_note": "Trừ điểm dựa trên mức độ sai lệch so với ngưỡng lý tưởng"
+            }
+          ]
+        },
+        {
+          "name": "Độ đa dạng và chính xác của ngữ pháp (Grammatical Range and Accuracy)",
+          "data_source": "ai",
+          "data_source_note": "Yêu cầu speech-to-text và NLP để phân tích ngữ pháp",
+          "ai_requirements": {
+            "stt_needed": true,
+            "nlp_needed": true,
+            "analysis_type": ["grammar_check", "structure_complexity"],
+            "description": "Phát hiện lỗi ngữ pháp và đánh giá độ phức tạp cấu trúc câu"
+          },
+          "max_score_per_question": 3.0,
+          "sub_criteria": [
+            {
+              "aspect": "Độ chính xác cơ bản",
+              "rules": [
+                {
+                  "condition": "Không mắc lỗi ngữ pháp cơ bản",
+                  "score": 2.0
+                },
+                {
+                  "condition": "Mỗi lỗi ngữ pháp",
+                  "score_deduction": -0.5
+                }
+              ]
+            },
+            {
+              "aspect": "Độ đa dạng/Phức tạp",
+              "rules": [
+                {
+                  "condition": "Sử dụng linh hoạt nhiều cấu trúc (câu đơn, câu phức, đa mệnh đề)",
+                  "score": 1.0
+                },
+                {
+                  "condition": "Chỉ sử dụng các cấu trúc cơ bản",
+                  "score": 0.0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Vốn từ vựng (Lexical Resource)",
+          "data_source": "ai",
+          "data_source_note": "Yêu cầu speech-to-text và NLP để phân tích từ vựng",
+          "ai_requirements": {
+            "stt_needed": true,
+            "nlp_needed": true,
+            "analysis_type": ["vocabulary_diversity", "vocabulary_accuracy"],
+            "description": "Đánh giá độ đa dạng và chính xác của từ vựng sử dụng"
+          },
+          "max_score_per_question": 1.0,
+          "scoring_rules": [
+            {
+              "condition": "Sử dụng từ vựng phong phú, linh hoạt, chính xác",
+              "score": 1.0
+            },
+            {
+              "condition": "Chỉ sử dụng từ vựng ở mức cơ bản",
+              "score": 0.0
+            }
+          ]
+        },
+        {
+          "name": "Tính mạch lạc và liên kết (Coherence and Cohesion)",
+          "data_source": "ai",
+          "data_source_note": "Yêu cầu speech-to-text và NLP để phân tích cấu trúc văn bản",
+          "ai_requirements": {
+            "stt_needed": true,
+            "nlp_needed": true,
+            "analysis_type": ["coherence_check", "transition_words"],
+            "description": "Đánh giá sự liên kết logic giữa các ý trong đoạn văn"
+          },
+          "max_score_per_question": 1.0,
+          "scoring_rules": [
+            {
+              "condition": "Ý tưởng phát triển, sắp xếp hợp lý, có ví dụ bổ sung",
+              "score": 1.0
+            },
+            {
+              "condition": "Ý tưởng thiếu liên kết, sắp xếp không hợp lý",
+              "score": 0.0
+            }
+          ]
+        },
+        {
+          "name": "Độ trôi chảy (Fluency)",
+          "data_source": "praat",
+          "data_source_note": "Sử dụng các thông số timing từ Praat để đánh giá độ trôi chảy",
+          "praat_metrics": {
+            "primary": ["speech_rate", "pause_ratio", "num_pauses", "mean_pause_duration"],
+            "secondary": ["articulation_rate", "speech_duration", "pause_duration"],
+            "thresholds": {
+              "speech_rate_slow": 100,
+              "speech_rate_ideal_min": 150,
+              "speech_rate_ideal_max": 220,
+              "speech_rate_fast": 280,
+              "pause_ratio_excellent": 0.15,
+              "pause_ratio_acceptable": 0.25,
+              "pause_ratio_poor": 0.35
+            },
+            "issue_detection": {
+              "ngat_nghi_sai": {
+                "detection": "pause_ratio > 0.25 OR mean_pause_duration > 0.6"
+              },
+              "ngap_ngung": {
+                "detection": "num_pauses > 10 AND mean_pause_duration < 0.5"
+              },
+              "toc_do_khong_on_dinh": {
+                "detection": "abs(articulation_rate - speech_rate) > 50"
+              }
+            }
+          },
+          "max_score_per_question": 2.0,
+          "scoring_rules": [
+            {
+              "condition": "Không có lỗi",
+              "score": 2.0,
+              "praat_condition": "150 <= speech_rate <= 220 AND pause_ratio <= 0.15"
+            },
+            {
+              "condition": "Ngắt nghỉ sai",
+              "score": 1.5,
+              "praat_condition": "pause_ratio > 0.25"
+            },
+            {
+              "condition": "Ngập ngừng",
+              "score": 1.5,
+              "praat_condition": "num_pauses > 10 AND mean_pause_duration < 0.5"
+            },
+            {
+              "condition": "Lặp từ",
+              "score": 1.5,
+              "requires_stt": true
+            },
+            {
+              "condition": "Tốc độ không ổn định",
+              "score": 1.5,
+              "praat_condition": "abs(articulation_rate - speech_rate) > 50"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "task_code": "HSKKTC3",
+      "task_name": "Trả lời câu hỏi (đoạn ngắn)",
+      "format": {
+        "question_count": 2,
+        "points_per_question": 20,
+        "total_points": 40
+      },
+      "criteria": [
+        {
+          "name": "Khả năng hoàn thành yêu cầu của bài (Task achievement)",
+          "data_source": "ai",
+          "data_source_note": "Yêu cầu speech-to-text và NLP để đánh giá nội dung và độ dài",
+          "ai_requirements": {
+            "stt_needed": true,
+            "nlp_needed": true,
+            "analysis_type": ["topic_relevance", "sentence_count"],
+            "description": "Đánh giá đúng trọng tâm và đủ độ dài (≥3 câu)"
+          },
+          "max_score_per_question": 6.0,
+          "sub_criteria": [
+            {
+              "aspect": "Nội dung",
+              "rules": [
+                {
+                  "condition": "Phần trả lời đúng trọng tâm chủ đề",
+                  "score": 4.0
+                },
+                {
+                  "condition": "Phần trả lời sai trọng tâm",
+                  "score": 0.0
+                }
+              ]
+            },
+            {
+              "aspect": "Độ dài",
+              "rules": [
+                {
+                  "condition": "Đoạn văn ngắn (≥ 3 câu nói)",
+                  "score": 2.0
+                },
+                {
+                  "condition": "Không phải đoạn văn (< 3 câu nói)",
+                  "score": 0.0
+                }
+              ]
+            }
+          ],
+          "feedback_templates": {
+            "overview_assessment": {
+              "high_score": "Phần trả lời đầy đủ, rõ ràng, đúng trọng tâm, lập luận tốt. Phát âm rõ, ngữ pháp chính xác, từ vựng đa dạng.",
+              "medium_score": "Đúng chủ đề, độ dài phù hợp nhưng nội dung đơn giản. Còn lỗi phát âm và ngữ pháp ảnh hưởng mạch lạc.",
+              "low_score": "Chưa đủ thông tin, cấu trúc chưa hoàn chỉnh, không đúng trọng tâm. Nhiều lỗi ngữ pháp và phát âm."
+            }
+          },
+          "improvement_plan": {
+            "model_answer": "Cung cấp bài nói mẫu đảm bảo 6 tiêu chí, sử dụng từ vựng HSK1-3, cấu trúc mở-thân-kết mạch lạc.",
+            "practice_recommendation": "Luyện tập dựa trên các lỗi sai cụ thể (ngữ pháp, phát âm, biểu đạt)."
+          }
+        },
+        {
+          "name": "Phát âm (Pronunciation)",
+          "data_source": "praat",
+          "data_source_note": "Sử dụng các thông số âm thanh từ Praat để đánh giá chất lượng phát âm",
+          "praat_metrics": {
+            "primary": ["hnr_mean", "jitter_local", "shimmer_local"],
+            "secondary": ["f1_mean", "f2_mean", "pitch_range", "pitch_std"],
+            "thresholds": {
+              "hnr_excellent": 20,
+              "hnr_good": 15,
+              "hnr_poor": 10,
+              "jitter_excellent": 0.01,
+              "jitter_acceptable": 0.015,
+              "shimmer_excellent": 0.05,
+              "shimmer_acceptable": 0.08
+            }
+          },
+          "max_score_per_question": 4.0,
+          "scoring_rules": [
+            {
+              "condition": "Không có lỗi sai",
+              "score": 4.0,
+              "praat_condition": "hnr_mean >= 20 AND jitter_local <= 0.01 AND shimmer_local <= 0.05"
+            },
+            {
+              "condition": "Mỗi lỗi phát âm",
+              "score_deduction": -0.5,
+              "praat_note": "Trừ điểm dựa trên mức độ sai lệch so với ngưỡng lý tưởng"
+            }
+          ]
+        },
+        {
+          "name": "Độ đa dạng và chính xác của ngữ pháp (Grammatical Range and Accuracy)",
+          "data_source": "ai",
+          "data_source_note": "Yêu cầu speech-to-text và NLP để phân tích ngữ pháp",
+          "ai_requirements": {
+            "stt_needed": true,
+            "nlp_needed": true,
+            "analysis_type": ["grammar_check", "structure_complexity"],
+            "description": "Phát hiện lỗi ngữ pháp và đánh giá độ phức tạp cấu trúc câu"
+          },
+          "max_score_per_question": 4.0,
+          "sub_criteria": [
+            {
+              "aspect": "Độ chính xác cơ bản",
+              "rules": [
+                {
+                  "condition": "Không mắc lỗi ngữ pháp cơ bản",
+                  "score": 3.0
+                },
+                {
+                  "condition": "Mỗi lỗi ngữ pháp",
+                  "score_deduction": -0.5
+                }
+              ]
+            },
+            {
+              "aspect": "Độ đa dạng/Phức tạp",
+              "rules": [
+                {
+                  "condition": "Sử dụng linh hoạt nhiều cấu trúc (câu đơn, câu phức, liên từ...)",
+                  "score": 1.0
+                },
+                {
+                  "condition": "Chỉ sử dụng các cấu trúc cơ bản",
+                  "score": 0.0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Vốn từ vựng (Lexical Resource)",
+          "data_source": "ai",
+          "data_source_note": "Yêu cầu speech-to-text và NLP để phân tích từ vựng",
+          "ai_requirements": {
+            "stt_needed": true,
+            "nlp_needed": true,
+            "analysis_type": ["vocabulary_diversity", "vocabulary_accuracy"],
+            "description": "Đánh giá độ đa dạng và chính xác của từ vựng sử dụng"
+          },
+          "max_score_per_question": 2.0,
+          "scoring_rules": [
+            {
+              "condition": "Sử dụng từ vựng phong phú, linh hoạt, chính xác",
+              "score": 2.0
+            },
+            {
+              "condition": "Sử dụng từ vựng chính xác nhưng đơn giản, cơ bản",
+              "score": 1.0
+            }
+          ]
+        },
+        {
+          "name": "Tính mạch lạc và liên kết (Coherence and Cohesion)",
+          "data_source": "ai",
+          "data_source_note": "Yêu cầu speech-to-text và NLP để phân tích cấu trúc văn bản",
+          "ai_requirements": {
+            "stt_needed": true,
+            "nlp_needed": true,
+            "analysis_type": ["coherence_check", "transition_words"],
+            "description": "Đánh giá sự liên kết logic giữa các ý trong đoạn văn"
+          },
+          "max_score_per_question": 2.0,
+          "scoring_rules": [
+            {
+              "condition": "Ý tưởng rõ ràng, liên kết chặt chẽ, logic",
+              "score": 2.0
+            },
+            {
+              "condition": "Ý tưởng chưa liên kết, nội dung không rõ ràng",
+              "score": 0.0
+            }
+          ]
+        },
+        {
+          "name": "Độ trôi chảy (Fluency)",
+          "data_source": "praat",
+          "data_source_note": "Sử dụng các thông số timing từ Praat để đánh giá độ trôi chảy",
+          "praat_metrics": {
+            "primary": ["speech_rate", "pause_ratio", "num_pauses", "mean_pause_duration"],
+            "secondary": ["articulation_rate", "speech_duration", "pause_duration"],
+            "thresholds": {
+              "speech_rate_slow": 100,
+              "speech_rate_ideal_min": 150,
+              "speech_rate_ideal_max": 220,
+              "speech_rate_fast": 280,
+              "pause_ratio_excellent": 0.15,
+              "pause_ratio_acceptable": 0.25,
+              "pause_ratio_poor": 0.35
+            },
+            "issue_detection": {
+              "ngat_nghi_sai": {
+                "detection": "pause_ratio > 0.25 OR mean_pause_duration > 0.6"
+              },
+              "ngap_ngung": {
+                "detection": "num_pauses > 10 AND mean_pause_duration < 0.5"
+              },
+              "toc_do_khong_on_dinh": {
+                "detection": "abs(articulation_rate - speech_rate) > 50"
+              }
+            }
+          },
+          "max_score_per_question": 2.0,
+          "scoring_rules": [
+            {
+              "condition": "Không có lỗi",
+              "score": 2.0,
+              "praat_condition": "150 <= speech_rate <= 220 AND pause_ratio <= 0.15"
+            },
+            {
+              "condition": "Ngắt nghỉ sai",
+              "score": 1.5,
+              "praat_condition": "pause_ratio > 0.25"
+            },
+            {
+              "condition": "Ngập ngừng",
+              "score": 1.5,
+              "praat_condition": "num_pauses > 10 AND mean_pause_duration < 0.5"
+            },
+            {
+              "condition": "Lặp từ",
+              "score": 1.5,
+              "requires_stt": true
+            },
+            {
+              "condition": "Tốc độ không ổn định",
+              "score": 1.5,
+              "praat_condition": "abs(articulation_rate - speech_rate) > 50"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
