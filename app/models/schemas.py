@@ -5,8 +5,6 @@ from typing import Optional, Dict
 
 from pydantic import BaseModel, Field
 
-from app.models.enums import HSKKLevel
-
 
 # ============== Audio Features ==============
 
@@ -74,41 +72,12 @@ class AudioFeatures(BaseModel):
     spread: float = Field(..., description="Spectral spread")
 
 
-# ============== Scoring Schemas ==============
+# ============== API Response ==============
 
-class HSKKScore(BaseModel):
-    """HSKK assessment score"""
-    overall_score: float = Field(..., ge=0, le=100)
-    level_achieved: HSKKLevel
-    pronunciation: float = Field(..., ge=0, le=100)
-    fluency: float = Field(..., ge=0, le=100)
-    grammar: float = Field(..., ge=0, le=100)
-    vocabulary: float = Field(..., ge=0, le=100)
-
-
-class PronunciationAssessment(BaseModel):
-    """Detailed pronunciation assessment"""
-    accuracy_score: float = Field(..., ge=0, le=1)
-    fluency_score: float = Field(..., ge=0, le=1)
-    completeness_score: float = Field(..., ge=0, le=1)
-    prosody_score: float = Field(..., ge=0, le=1)
-    detailed_feedback: Dict[str, str] = Field(default_factory=dict)
-
-
-# ============== API Request/Response ==============
-
-class AssessmentRequest(BaseModel):
-    """Request schema for assessment (form data handled separately)"""
-    reference_text: Optional[str] = None
-
-
-class AssessmentResponse(BaseModel):
-    """Response schema for assessment endpoint"""
+class RawFeaturesResponse(BaseModel):
+    """Response schema for raw Praat features"""
     success: bool
-    score: Optional[HSKKScore] = None
     features: Optional[AudioFeatures] = None
-    pronunciation: Optional[PronunciationAssessment] = None
-    transcription: Optional[str] = None
     error_message: Optional[str] = None
     processing_time: float = Field(..., ge=0)
 

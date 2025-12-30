@@ -1,4 +1,4 @@
 # API v1 module
-from app.api.v1 import assessment, health
+from app.api.v1 import health, scoring
 
-__all__ = ["assessment", "health"]
+__all__ = ["health", "scoring"]

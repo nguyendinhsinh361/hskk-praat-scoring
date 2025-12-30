@@ -15,7 +15,6 @@ _praat_repository = None
 _audio_repository = None
 _praat_service = None
 _audio_service = None
-_scoring_service = None
 _assessment_service = None
 
 
@@ -61,15 +60,6 @@ def get_audio_service():
     return _audio_service
 
 
-def get_scoring_service():
-    """Get ScoringService singleton"""
-    global _scoring_service
-    if _scoring_service is None:
-        from app.services.scoring_service import ScoringService
-        _scoring_service = ScoringService(get_settings())
-    return _scoring_service
-
-
 def get_assessment_service():
     """Get AssessmentService singleton"""
     global _assessment_service
@@ -78,8 +68,7 @@ def get_assessment_service():
         _assessment_service = AssessmentService(
             settings=get_settings(),
             audio_service=get_audio_service(),
-            praat_service=get_praat_service(),
-            scoring_service=get_scoring_service()
+            praat_service=get_praat_service()
         )
     return _assessment_service
 

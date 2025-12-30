@@ -1,14 +1,13 @@
 """
 Praat Service - Acoustic feature extraction
-Handles Praat integration and feature parsing
+Uses Praat CLI via Docker container
 """
-import time
 import logging
 from pathlib import Path
 from typing import Optional, Dict
 
 from app.core.config import Settings
-from app.core.exceptions import FeatureExtractionError, PraatConnectionError
+from app.core.exceptions import FeatureExtractionError
 from app.models.schemas import AudioFeatures
 from app.repositories.praat_repository import PraatRepository
 
@@ -33,19 +32,13 @@ class PraatService:
     def extract_features(self, audio_path: Path) -> Optional[AudioFeatures]:
         """
         Extract 43 acoustic features from audio file
-        
-        Args:
-            audio_path: Path to audio file
-            
-        Returns:
-            AudioFeatures object or None if extraction fails
         """
         output_filename = f"{audio_path.stem}_features.txt"
         
         logger.info(f"Extracting features from {audio_path.name}")
         
         try:
-            # Run Praat script
+            # Run Praat script (no sleep needed - synchronous)
             success = self.repository.run_script(
                 "extract_features.praat",
                 audio_path.name,
@@ -54,9 +47,6 @@ class PraatService:
             
             if not success:
                 raise FeatureExtractionError("Praat script execution failed")
-            
-            # Wait for file to be written
-            time.sleep(1)
             
             # Read and parse results
             features_dict = self.repository.read_output_file(output_filename)
@@ -86,10 +76,7 @@ class PraatService:
         duration = safe_get('duration', 0.0, 0.0)
         
         return AudioFeatures(
-            # Basic (1)
             duration=duration,
-            
-            # Pitch (8)
             pitch_mean=safe_get('pitch_mean', 200.0, 50.0, 500.0),
             pitch_std=safe_get('pitch_std', 30.0, 0.0),
             pitch_range=safe_get('pitch_range', 100.0, 0.0),
@@ -98,8 +85,6 @@ class PraatService:
             pitch_median=safe_get('pitch_median', 200.0, 50.0, 500.0),
             pitch_quantile_25=safe_get('pitch_quantile_25', 180.0, 50.0, 500.0),
             pitch_quantile_75=safe_get('pitch_quantile_75', 220.0, 50.0, 500.0),
-            
-            # Formants (8)
             f1_mean=safe_get('f1_mean', 500.0, 200.0, 1000.0),
             f1_std=safe_get('f1_std', 50.0, 0.0),
             f2_mean=safe_get('f2_mean', 1500.0, 800.0, 3000.0),
@@ -108,20 +93,14 @@ class PraatService:
             f3_std=safe_get('f3_std', 150.0, 0.0),
             f4_mean=safe_get('f4_mean', 3500.0, 2500.0, 5000.0),
             f4_std=safe_get('f4_std', 200.0, 0.0),
-            
-            # Intensity (4)
             intensity_mean=safe_get('intensity_mean', 60.0, 0.0, 100.0),
             intensity_std=safe_get('intensity_std', 5.0, 0.0),
             intensity_min=safe_get('intensity_min', 40.0, 0.0, 100.0),
             intensity_max=safe_get('intensity_max', 80.0, 0.0, 100.0),
-            
-            # Spectral (4)
             spectral_centroid=safe_get('spectral_centroid', 1000.0, 100.0),
             spectral_std=safe_get('spectral_std', 500.0, 0.0),
             spectral_skewness=safe_get('spectral_skewness', 0.0),
             spectral_kurtosis=safe_get('spectral_kurtosis', 3.0),
-            
-            # Voice Quality (10)
             hnr_mean=safe_get('hnr_mean', 20.0, 0.0, 40.0),
             hnr_std=safe_get('hnr_std', 2.0, 0.0),
             jitter_local=safe_get('jitter_local', 0.01, 0.0, 0.1),
@@ -131,8 +110,6 @@ class PraatService:
             shimmer_apq3=safe_get('shimmer_apq3', 0.1, 0.0, 1.0),
             shimmer_apq5=safe_get('shimmer_apq5', 0.1, 0.0, 1.0),
             shimmer_apq11=safe_get('shimmer_apq11', 0.1, 0.0, 1.0),
-            
-            # Timing (7)
             speech_rate=safe_get('speech_rate', 180.0, 0.0),
             articulation_rate=safe_get('articulation_rate', 200.0, 0.0),
             speech_duration=safe_get('speech_duration', duration, 0.0, duration),
@@ -140,8 +117,6 @@ class PraatService:
             pause_ratio=safe_get('pause_ratio', 0.1, 0.0, 1.0),
             num_pauses=int(safe_get('num_pauses', 0, 0)),
             mean_pause_duration=safe_get('mean_pause_duration', 0.0, 0.0),
-            
-            # Additional (3)
             cog=safe_get('cog', 1000.0, 0.0),
             slope=safe_get('slope', 0.0),
             spread=safe_get('spread', 0.0)

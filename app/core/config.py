@@ -4,7 +4,7 @@ Centralized configuration for the entire application
 """
 from functools import lru_cache
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -16,10 +16,11 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
+        extra="ignore",  # Ignore extra env vars
     )
     
     # Application
-    app_name: str = "HSKK Scoring System"
+    app_name: str = "HSKK Praat Feature Extractor"
     app_version: str = "1.0.0"
     debug: bool = False
     log_level: str = "INFO"
@@ -50,8 +51,8 @@ class Settings(BaseSettings):
         return path
     
     # Docker/Praat
-    praat_container_name: str = "hskk-praat-scoring_praat_1"
-    praat_timeout: int = 10
+    praat_container_name: str = "hskk-praat-container"
+    praat_timeout: int = 60  # Increased for longer audio files
     
     # Audio
     supported_formats: List[str] = [".wav", ".mp3", ".m4a", ".flac"]
@@ -59,25 +60,18 @@ class Settings(BaseSettings):
     max_audio_duration: int = 180
     max_file_size: int = 100 * 1024 * 1024  # 100MB
     
-    # Scoring weights
-    weight_pronunciation: float = 0.35
-    weight_fluency: float = 0.35
-    weight_grammar: float = 0.15
-    weight_vocabulary: float = 0.15
-
-
-# Standard scoring thresholds for audio analysis
-SCORING_THRESHOLDS = {
-    "pitch_range_min": 80,
-    "speech_rate_min": 100,
-    "speech_rate_max": 250,
-    "pause_ratio_max": 0.35,
-    "hnr_min": 17,
-    "pronunciation_accuracy_min": 0.7
-}
+    # AI Providers
+    openai_api_key: Optional[str] = None
+    openai_model: str = "gpt-4o"
+    gemini_api_key: Optional[str] = None
+    gemini_model: str = "gemini-2.0-flash-exp"
+    
+    # Default AI provider: "openai" or "gemini"
+    default_ai_provider: str = "openai"
 
 
 @lru_cache
 def get_settings() -> Settings:
     """Get cached settings instance (singleton pattern)"""
     return Settings()
+

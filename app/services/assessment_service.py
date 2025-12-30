@@ -1,11 +1,10 @@
 """
 Assessment Service - Main orchestrator
-Coordinates audio, praat, and scoring services
+Coordinates audio and praat services for raw feature extraction
 """
 import time
 import logging
 from pathlib import Path
-from typing import Optional
 
 from app.core.config import Settings
 from app.core.exceptions import (
@@ -14,45 +13,40 @@ from app.core.exceptions import (
     FeatureExtractionError,
     PraatExecutionError,
 )
-from app.models.schemas import AssessmentResponse
+from app.models.schemas import RawFeaturesResponse
 from app.services.audio_service import AudioService
 from app.services.praat_service import PraatService
-from app.services.scoring_service import ScoringService
 
 logger = logging.getLogger(__name__)
 
 
 class AssessmentService:
-    """Main orchestrator service for HSKK assessment"""
+    """Main orchestrator service for Praat feature extraction"""
     
     def __init__(
         self,
         settings: Settings,
         audio_service: AudioService,
-        praat_service: PraatService,
-        scoring_service: ScoringService
+        praat_service: PraatService
     ):
         self.settings = settings
         self.audio_service = audio_service
         self.praat_service = praat_service
-        self.scoring_service = scoring_service
     
-    async def assess(
+    async def extract_raw_features(
         self,
         audio_content: bytes,
-        filename: str,
-        reference_text: Optional[str] = None
-    ) -> AssessmentResponse:
+        filename: str
+    ) -> RawFeaturesResponse:
         """
-        Perform full HSKK assessment on audio file
+        Extract raw 43 Praat acoustic features from audio
         
         Args:
             audio_content: Raw audio file bytes
             filename: Original filename
-            reference_text: Optional reference text
             
         Returns:
-            AssessmentResponse with scores and features
+            RawFeaturesResponse with raw acoustic features
         """
         start_time = time.time()
         
@@ -85,28 +79,12 @@ class AssessmentService:
                     start_time
                 )
             
-            logger.info(f"Features: duration={features.duration:.2f}s, pitch={features.pitch_mean:.1f}Hz")
-            
-            # Generate transcription placeholder
-            transcription = self._generate_transcription(filename, features)
-            
-            # Calculate score
-            score = self.scoring_service.calculate_score(features, transcription)
-            
-            # Create pronunciation assessment
-            pronunciation = self.scoring_service.create_pronunciation_assessment(
-                features, reference_text
-            )
-            
             processing_time = time.time() - start_time
-            logger.info(f"Assessment done in {processing_time:.2f}s - Score: {score.overall_score:.1f}")
+            logger.info(f"Features extracted in {processing_time:.2f}s")
             
-            return AssessmentResponse(
+            return RawFeaturesResponse(
                 success=True,
-                score=score,
                 features=features,
-                pronunciation=pronunciation,
-                transcription=transcription,
                 error_message=None,
                 processing_time=processing_time
             )
@@ -128,22 +106,11 @@ class AssessmentService:
             f.write(content)
         return input_path
     
-    def _generate_transcription(self, filename: str, features) -> str:
-        """Generate transcription placeholder (integrate Whisper here)"""
-        return (
-            f"音频分析完成。文件: {filename}, "
-            f"时长: {features.duration:.1f}秒, "
-            f"平均音高: {features.pitch_mean:.1f}Hz"
-        )
-    
-    def _error_response(self, message: str, start_time: float) -> AssessmentResponse:
+    def _error_response(self, message: str, start_time: float) -> RawFeaturesResponse:
         """Create error response"""
-        return AssessmentResponse(
+        return RawFeaturesResponse(
             success=False,
-            score=None,
             features=None,
-            pronunciation=None,
-            transcription=None,
             error_message=message,
             processing_time=time.time() - start_time
         )
