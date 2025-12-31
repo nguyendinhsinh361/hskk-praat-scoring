@@ -1,15 +1,29 @@
 """
-Scoring API - Extract features and score audio based on HSKK criteria
+Scoring API - Extract features, transcribe audio, and score using Praat + AI
+Dynamic criteria selection based on task_code
 """
 from enum import Enum
-from typing import Optional
-from fastapi import APIRouter, UploadFile, File, Query, Depends
+from typing import Optional, Dict, List, Any
+from pathlib import Path
+from fastapi import APIRouter, UploadFile, File, Query, Depends, HTTPException
 from pydantic import BaseModel, Field
 import logging
+import tempfile
+import os
 
+from app.core.config import Settings, get_settings
 from app.core.dependencies import get_assessment_service
 from app.services.assessment_service import AssessmentService
 from app.scorers.praat_scorers import PronunciationScorer, FluencyScorer
+from app.scorers.ai_scorers.ai_provider import get_ai_provider, AIProviderType
+from app.scorers.ai_scorers.task_achievement_scorer import TaskAchievementScorer
+from app.scorers.ai_scorers.grammar_scorer import GrammarScorer
+from app.scorers.ai_scorers.vocabulary_scorer import VocabularyScorer
+from app.scorers.ai_scorers.coherence_scorer import CoherenceScorer
+from app.scorers.task_criteria_config import (
+    get_task_config, get_criteria_for_task, get_max_scores_for_task,
+    task_requires_reference, CriteriaType, DataSource, TaskConfig
+)
 
 logger = logging.getLogger(__name__)
 
@@ -20,41 +34,22 @@ router = APIRouter(prefix="/api/v1/score", tags=["Scoring"])
 
 class TaskCode(str, Enum):
     """HSKK Task codes"""
-    # Sơ cấp (Beginner - 101)
-    HSKKSC1 = "HSKKSC1"  # Nghe và nhắc lại
-    HSKKSC2 = "HSKKSC2"  # Nghe và trả lời (câu ngắn)
-    HSKKSC3 = "HSKKSC3"  # Trả lời câu hỏi (đoạn ngắn)
-    
-    # Trung cấp (Intermediate - 102)
-    HSKKTC1 = "HSKKTC1"  # Nghe và nhắc lại
-    HSKKTC2 = "HSKKTC2"  # Mô tả tranh
-    HSKKTC3 = "HSKKTC3"  # Trả lời câu hỏi
-    
-    # Cao cấp (Advanced - 103)
-    HSKKCC1 = "HSKKCC1"  # Nghe và nhắc lại
-    HSKKCC2 = "HSKKCC2"  # Đọc đoạn văn
-    HSKKCC3 = "HSKKCC3"  # Trả lời câu hỏi
+    HSKKSC1 = "HSKKSC1"
+    HSKKSC2 = "HSKKSC2"
+    HSKKSC3 = "HSKKSC3"
+    HSKKTC1 = "HSKKTC1"
+    HSKKTC2 = "HSKKTC2"
+    HSKKTC3 = "HSKKTC3"
+    HSKKCC1 = "HSKKCC1"
+    HSKKCC2 = "HSKKCC2"
+    HSKKCC3 = "HSKKCC3"
 
 
 class ExamLevel(str, Enum):
     """HSKK Exam levels"""
-    BEGINNER = "101"      # Sơ cấp
-    INTERMEDIATE = "102"  # Trung cấp
-    ADVANCED = "103"      # Cao cấp
-
-
-# Task code to internal task mapping
-TASK_MAPPING = {
-    "HSKKSC1": "task1", "HSKKSC2": "task2", "HSKKSC3": "task3",
-    "HSKKTC1": "task1", "HSKKTC2": "task2", "HSKKTC3": "task3",
-    "HSKKCC1": "task1", "HSKKCC2": "task2", "HSKKCC3": "task3",
-}
-
-LEVEL_MAPPING = {
-    "101": "beginner",
-    "102": "intermediate", 
-    "103": "advanced",
-}
+    BEGINNER = "101"
+    INTERMEDIATE = "102"
+    ADVANCED = "103"
 
 
 # ========== Response Schemas ==========
@@ -68,73 +63,40 @@ class ScoreDetail(BaseModel):
     level: str
     issues: list[str]
     feedback: str
+    details: Optional[dict] = None
 
 
-class AudioFeaturesDict(BaseModel):
-    """Audio features as dict"""
-    duration: float
-    pitch_mean: float
-    pitch_std: float
-    pitch_range: float
-    pitch_min: float
-    pitch_max: float
-    pitch_median: float
-    pitch_quantile_25: float
-    pitch_quantile_75: float
-    f1_mean: float
-    f1_std: float
-    f2_mean: float
-    f2_std: float
-    f3_mean: float
-    f3_std: float
-    f4_mean: float
-    f4_std: float
-    intensity_mean: float
-    intensity_std: float
-    intensity_min: float
-    intensity_max: float
-    spectral_centroid: float
-    spectral_std: float
-    spectral_skewness: float
-    spectral_kurtosis: float
-    hnr_mean: float
-    hnr_std: float
-    jitter_local: float
-    jitter_rap: float
-    jitter_ppq5: float
-    shimmer_local: float
-    shimmer_apq3: float
-    shimmer_apq5: float
-    shimmer_apq11: float
-    speech_rate: float
-    articulation_rate: float
-    speech_duration: float
-    pause_duration: float
-    pause_ratio: float
-    num_pauses: int
-    mean_pause_duration: float
-    cog: float
-    slope: float
-    spread: float
+class STTResult(BaseModel):
+    """Speech-to-text result"""
+    transcribed_text: str
+    language: str = "zh"
 
 
-class ScoreResponse(BaseModel):
-    """Combined response with features and scores"""
-    success: bool
-    exam_level: str
+class TaskInfo(BaseModel):
+    """Task metadata"""
     task_code: str
+    task_name: str
+    exam_level: str
+    criteria_count: int
+    criteria_types: List[str]
+    total_max_score: float
+
+
+class FullScoreResponse(BaseModel):
+    """Full response with features and all scores"""
+    success: bool
+    task_info: Optional[TaskInfo] = None
     
-    # Raw features
-    features: Optional[AudioFeaturesDict] = None
+    # STT result
+    stt: Optional[STTResult] = None
     
-    # Praat-based scores
-    pronunciation: Optional[ScoreDetail] = None
-    fluency: Optional[ScoreDetail] = None
+    # Scores by criteria
+    scores: Dict[str, ScoreDetail] = Field(default_factory=dict)
     
-    # Total scores
-    praat_score: float = 0
-    praat_max_score: float = 0
-    praat_percentage: float = 0
+    # Summary
+    total_score: float = 0
+    max_total_score: float = 0
+    total_percentage: float = 0
     
     # Timing
     processing_time: float = 0
@@ -152,115 +114,431 @@ def scoring_result_to_detail(result, criteria_name: str) -> ScoreDetail:
         percentage=result.percentage,
         level=result.level.value,
         issues=result.issues,
-        feedback=result.feedback
+        feedback=result.feedback,
+        details=result.details if hasattr(result, 'details') else None
     )
 
 
-# ========== Endpoint ==========
+async def transcribe_audio_with_whisper(audio_path: Path, api_key: str) -> str:
+    """Transcribe audio using OpenAI Whisper"""
+    from openai import AsyncOpenAI
+    
+    client = AsyncOpenAI(api_key=api_key)
+    
+    with open(audio_path, "rb") as audio_file:
+        transcription = await client.audio.transcriptions.create(
+            model="whisper-1",
+            file=audio_file,
+            language="zh"
+        )
+    
+    logger.info(f"Transcribed: {transcription.text[:100]}...")
+    return transcription.text
+
+
+async def score_with_criteria(
+    task_config: TaskConfig,
+    features_dict: Dict[str, Any],
+    transcribed_text: str,
+    reference_text: Optional[str],
+    ai_provider,
+    settings: Settings
+) -> Dict[str, ScoreDetail]:
+    """Score based on task-specific criteria"""
+    scores = {}
+    level = task_config.level_name
+    max_scores = get_max_scores_for_task(task_config.task_code)
+    
+    for criteria in task_config.criteria:
+        criteria_type = criteria.type
+        max_score = criteria.max_score
+        
+        try:
+            if criteria.source == DataSource.PRAAT:
+                # Praat-based scoring
+                if criteria_type == CriteriaType.PRONUNCIATION:
+                    scorer = PronunciationScorer(exam_level=level)
+                    scorer.max_scores[level] = {"task": max_score}
+                    result = scorer.score(features_dict, task="task")
+                    scores["pronunciation"] = scoring_result_to_detail(
+                        result, criteria.name_vi
+                    )
+                    
+                elif criteria_type == CriteriaType.FLUENCY:
+                    scorer = FluencyScorer(exam_level=level)
+                    scorer.max_scores[level] = {"task": max_score}
+                    result = scorer.score(features_dict, task="task")
+                    scores["fluency"] = scoring_result_to_detail(
+                        result, criteria.name_vi
+                    )
+                    
+            elif criteria.source == DataSource.AI:
+                # AI-based scoring
+                text_data = {"text": transcribed_text}
+                
+                if criteria_type == CriteriaType.TASK_ACHIEVEMENT:
+                    scorer = TaskAchievementScorer(ai_provider, level)
+                    if criteria.requires_reference and reference_text:
+                        result = await scorer.score(
+                            text_data, 
+                            task="task1",
+                            reference_text=reference_text
+                        )
+                    else:
+                        result = await scorer.score(text_data, task="task3")
+                    # Adjust max score
+                    result.max_score = max_score
+                    result.score = min(result.score, max_score)
+                    scores["task_achievement"] = scoring_result_to_detail(
+                        result, criteria.name_vi
+                    )
+                    
+                elif criteria_type == CriteriaType.GRAMMAR:
+                    scorer = GrammarScorer(ai_provider, level)
+                    result = await scorer.score(text_data, task="task")
+                    result.max_score = max_score
+                    result.score = min(result.score, max_score)
+                    scores["grammar"] = scoring_result_to_detail(
+                        result, criteria.name_vi
+                    )
+                    
+                elif criteria_type == CriteriaType.VOCABULARY:
+                    scorer = VocabularyScorer(ai_provider, level)
+                    result = await scorer.score(text_data, task="task")
+                    result.max_score = max_score
+                    result.score = min(result.score, max_score)
+                    scores["vocabulary"] = scoring_result_to_detail(
+                        result, criteria.name_vi
+                    )
+                    
+                elif criteria_type == CriteriaType.COHERENCE:
+                    scorer = CoherenceScorer(ai_provider, level)
+                    result = await scorer.score(text_data, task="task")
+                    result.max_score = max_score
+                    result.score = min(result.score, max_score)
+                    scores["coherence"] = scoring_result_to_detail(
+                        result, criteria.name_vi
+                    )
+                    
+        except Exception as e:
+            logger.error(f"Error scoring {criteria_type}: {e}")
+            # Create error score detail
+            scores[criteria_type.value] = ScoreDetail(
+                criteria_name=criteria.name_vi,
+                score=0,
+                max_score=max_score,
+                percentage=0,
+                level="error",
+                issues=[f"Scoring error: {str(e)}"],
+                feedback="Không thể chấm điểm tiêu chí này"
+            )
+    
+    return scores
+
+
+# ========== Endpoints ==========
 
 @router.post(
-    "/praat",
-    response_model=ScoreResponse,
-    summary="Extract Features and Score Audio",
-    description="Upload audio file, extract Praat features, and calculate pronunciation & fluency scores"
+    "/full",
+    response_model=FullScoreResponse,
+    summary="Full Scoring with STT + Praat + AI",
+    description="Upload audio, transcribe with Whisper, and score based on task-specific criteria"
 )
-async def score_audio(
+async def full_score_audio(
     audio_file: UploadFile = File(..., description="Audio file (wav, mp3, m4a, flac)"),
     exam_level: ExamLevel = Query(
         default=ExamLevel.BEGINNER,
-        description="Exam level: 101 (beginner), 102 (intermediate), 103 (advanced)"
+        description="Exam level: 101, 102, 103"
     ),
     task_code: TaskCode = Query(
         default=TaskCode.HSKKSC1,
         description="Task code: HSKKSC1-3, HSKKTC1-3, HSKKCC1-3"
     ),
-    assessment_service: AssessmentService = Depends(get_assessment_service)
-) -> ScoreResponse:
+    reference_text: Optional[str] = Query(
+        default=None,
+        description="Reference text for repeat/read tasks (required for task1 types)"
+    ),
+    assessment_service: AssessmentService = Depends(get_assessment_service),
+    settings: Settings = Depends(get_settings)
+) -> FullScoreResponse:
     """
-    Extract Praat features and calculate scores for audio file.
+    Full scoring pipeline based on task-specific criteria.
     
-    **Exam Levels:**
-    - 101: Sơ cấp (Beginner)
-    - 102: Trung cấp (Intermediate)
-    - 103: Cao cấp (Advanced)
-    
-    **Task Codes:**
-    - HSKKSC1/TC1/CC1: Nghe và nhắc lại
-    - HSKKSC2/TC2: Nghe và trả lời / Mô tả tranh
-    - HSKKSC3/TC3/CC3: Trả lời câu hỏi
-    - HSKKCC2: Đọc đoạn văn
+    Each task has different criteria:
+    - HSKKSC1: 3 criteria (Task Achievement, Pronunciation, Fluency)
+    - HSKKSC2: 4 criteria (Task Achievement, Grammar, Pronunciation, Fluency)
+    - HSKKSC3: 6 criteria (All)
+    - etc.
     """
     import time
     start_time = time.time()
     
+    # Get task configuration
+    task_config = get_task_config(task_code.value)
+    if not task_config:
+        raise HTTPException(status_code=400, detail=f"Unknown task code: {task_code}")
+    
+    # Check API key for AI criteria
+    if task_config.has_ai_criteria and not settings.openai_api_key:
+        raise HTTPException(
+            status_code=500,
+            detail="OPENAI_API_KEY required for AI-based scoring"
+        )
+    
+    # Check reference text for similarity tasks
+    if task_requires_reference(task_code.value) and not reference_text:
+        logger.warning(f"Task {task_code} requires reference_text for accurate scoring")
+    
     try:
-        # Read file content
         content = await audio_file.read()
         
-        # Extract raw features using assessment service
+        # Create task info
+        task_info = TaskInfo(
+            task_code=task_config.task_code,
+            task_name=task_config.task_name,
+            exam_level=task_config.exam_level,
+            criteria_count=len(task_config.criteria),
+            criteria_types=[c.type.value for c in task_config.criteria],
+            total_max_score=sum(c.max_score for c in task_config.criteria)
+        )
+        
+        # Save to temp file for Whisper
+        temp_dir = tempfile.mkdtemp()
+        temp_audio_path = Path(temp_dir) / audio_file.filename
+        
+        with open(temp_audio_path, "wb") as f:
+            f.write(content)
+        
+        # Step 1: Transcribe with Whisper
+        logger.info(f"Step 1: Transcribing for {task_code.value}...")
+        transcribed_text = await transcribe_audio_with_whisper(
+            temp_audio_path,
+            settings.openai_api_key
+        )
+        stt_result = STTResult(transcribed_text=transcribed_text)
+        
+        # Step 2: Extract Praat features
+        logger.info("Step 2: Extracting Praat features...")
         raw_result = await assessment_service.extract_raw_features(
             audio_content=content,
             filename=audio_file.filename
         )
         
         if not raw_result.success or raw_result.features is None:
-            return ScoreResponse(
+            return FullScoreResponse(
                 success=False,
-                exam_level=exam_level.value,
-                task_code=task_code.value,
+                task_info=task_info,
+                stt=stt_result,
                 processing_time=time.time() - start_time,
                 error_message=raw_result.error_message
             )
         
-        # Convert features to dict for scoring
         features_dict = raw_result.features.model_dump()
         
-        # Get internal level and task
-        level = LEVEL_MAPPING[exam_level.value]
-        task = TASK_MAPPING[task_code.value]
-        
-        # Initialize scorers
-        pronunciation_scorer = PronunciationScorer(exam_level=level)
-        fluency_scorer = FluencyScorer(exam_level=level)
-        
-        # Calculate scores
-        pronunciation_result = pronunciation_scorer.score(features_dict, task=task)
-        fluency_result = fluency_scorer.score(features_dict, task=task)
-        
-        # Convert to response format
-        pronunciation_detail = scoring_result_to_detail(
-            pronunciation_result,
-            pronunciation_scorer.get_criteria_name()
+        # Step 3: Score with task-specific criteria
+        logger.info(f"Step 3: Scoring {len(task_config.criteria)} criteria...")
+        ai_provider = get_ai_provider(
+            AIProviderType.OPENAI,
+            settings.openai_api_key,
+            settings.openai_model
         )
-        fluency_detail = scoring_result_to_detail(
-            fluency_result,
-            fluency_scorer.get_criteria_name()
+        
+        scores = await score_with_criteria(
+            task_config=task_config,
+            features_dict=features_dict,
+            transcribed_text=transcribed_text,
+            reference_text=reference_text,
+            ai_provider=ai_provider,
+            settings=settings
         )
+        
+        # Cleanup
+        os.unlink(temp_audio_path)
+        os.rmdir(temp_dir)
         
         # Calculate totals
-        total_score = pronunciation_result.score + fluency_result.score
-        max_total = pronunciation_result.max_score + fluency_result.max_score
+        total_score = sum(s.score for s in scores.values())
+        max_total = sum(s.max_score for s in scores.values())
         total_pct = (total_score / max_total * 100) if max_total > 0 else 0
         
-        return ScoreResponse(
+        return FullScoreResponse(
             success=True,
-            exam_level=exam_level.value,
-            task_code=task_code.value,
-            features=AudioFeaturesDict(**features_dict),
-            pronunciation=pronunciation_detail,
-            fluency=fluency_detail,
-            praat_score=round(total_score, 2),
-            praat_max_score=round(max_total, 2),
-            praat_percentage=round(total_pct, 1),
+            task_info=task_info,
+            stt=stt_result,
+            scores=scores,
+            total_score=round(total_score, 2),
+            max_total_score=round(max_total, 2),
+            total_percentage=round(total_pct, 1),
             processing_time=round(time.time() - start_time, 3)
         )
         
     except Exception as e:
-        logger.error(f"Scoring error: {e}")
-        return ScoreResponse(
+        logger.error(f"Full scoring error: {e}", exc_info=True)
+        return FullScoreResponse(
             success=False,
-            exam_level=exam_level.value,
-            task_code=task_code.value,
+            task_info=TaskInfo(
+                task_code=task_code.value,
+                task_name="",
+                exam_level=exam_level.value,
+                criteria_count=0,
+                criteria_types=[],
+                total_max_score=0
+            ),
             processing_time=round(time.time() - start_time, 3),
             error_message=str(e)
         )
+
+
+@router.post(
+    "/praat",
+    response_model=FullScoreResponse,
+    summary="Praat-only Scoring (No AI)",
+    description="Score using only Praat features (faster, no API key needed)"
+)
+async def praat_only_score(
+    audio_file: UploadFile = File(..., description="Audio file"),
+    exam_level: ExamLevel = Query(default=ExamLevel.BEGINNER),
+    task_code: TaskCode = Query(default=TaskCode.HSKKSC1),
+    assessment_service: AssessmentService = Depends(get_assessment_service)
+) -> FullScoreResponse:
+    """
+    Praat-only scoring - only Pronunciation and Fluency.
+    Faster and doesn't require API keys.
+    """
+    import time
+    start_time = time.time()
+    
+    task_config = get_task_config(task_code.value)
+    if not task_config:
+        raise HTTPException(status_code=400, detail=f"Unknown task code: {task_code}")
+    
+    try:
+        content = await audio_file.read()
+        
+        # Get only Praat criteria
+        praat_criteria = [c for c in task_config.criteria if c.source == DataSource.PRAAT]
+        
+        task_info = TaskInfo(
+            task_code=task_config.task_code,
+            task_name=task_config.task_name,
+            exam_level=task_config.exam_level,
+            criteria_count=len(praat_criteria),
+            criteria_types=[c.type.value for c in praat_criteria],
+            total_max_score=sum(c.max_score for c in praat_criteria)
+        )
+        
+        # Extract features
+        raw_result = await assessment_service.extract_raw_features(
+            audio_content=content,
+            filename=audio_file.filename
+        )
+        
+        if not raw_result.success or raw_result.features is None:
+            return FullScoreResponse(
+                success=False,
+                task_info=task_info,
+                processing_time=time.time() - start_time,
+                error_message=raw_result.error_message
+            )
+        
+        features_dict = raw_result.features.model_dump()
+        level = task_config.level_name
+        scores = {}
+        
+        # Score Praat criteria only
+        for criteria in praat_criteria:
+            if criteria.type == CriteriaType.PRONUNCIATION:
+                scorer = PronunciationScorer(exam_level=level)
+                scorer.max_scores[level] = {"task": criteria.max_score}
+                result = scorer.score(features_dict, task="task")
+                scores["pronunciation"] = scoring_result_to_detail(result, criteria.name_vi)
+                
+            elif criteria.type == CriteriaType.FLUENCY:
+                scorer = FluencyScorer(exam_level=level)
+                scorer.max_scores[level] = {"task": criteria.max_score}
+                result = scorer.score(features_dict, task="task")
+                scores["fluency"] = scoring_result_to_detail(result, criteria.name_vi)
+        
+        total_score = sum(s.score for s in scores.values())
+        max_total = sum(s.max_score for s in scores.values())
+        total_pct = (total_score / max_total * 100) if max_total > 0 else 0
+        
+        return FullScoreResponse(
+            success=True,
+            task_info=task_info,
+            scores=scores,
+            total_score=round(total_score, 2),
+            max_total_score=round(max_total, 2),
+            total_percentage=round(total_pct, 1),
+            processing_time=round(time.time() - start_time, 3)
+        )
+        
+    except Exception as e:
+        logger.error(f"Praat scoring error: {e}")
+        return FullScoreResponse(
+            success=False,
+            processing_time=round(time.time() - start_time, 3),
+            error_message=str(e)
+        )
+
+
+@router.get(
+    "/task-info/{task_code}",
+    summary="Get Task Info",
+    description="Get criteria information for a specific task"
+)
+async def get_task_info(task_code: TaskCode):
+    """Get task configuration and criteria list"""
+    config = get_task_config(task_code.value)
+    if not config:
+        raise HTTPException(status_code=404, detail=f"Task not found: {task_code}")
+    
+    return {
+        "task_code": config.task_code,
+        "task_name": config.task_name,
+        "exam_level": config.exam_level,
+        "level_name": config.level_name,
+        "question_count": config.question_count,
+        "points_per_question": config.points_per_question,
+        "total_points": config.total_points,
+        "criteria": [
+            {
+                "type": c.type.value,
+                "source": c.source.value,
+                "max_score": c.max_score,
+                "name": c.name_vi,
+                "requires_reference": c.requires_reference
+            }
+            for c in config.criteria
+        ],
+        "total_max_score": sum(c.max_score for c in config.criteria)
+    }
+
+
+@router.post(
+    "/transcribe",
+    response_model=STTResult,
+    summary="Transcribe Audio Only"
+)
+async def transcribe_only(
+    audio_file: UploadFile = File(...),
+    settings: Settings = Depends(get_settings)
+) -> STTResult:
+    """Transcribe Chinese audio using OpenAI Whisper"""
+    if not settings.openai_api_key:
+        raise HTTPException(status_code=500, detail="OPENAI_API_KEY not configured")
+    
+    content = await audio_file.read()
+    
+    temp_dir = tempfile.mkdtemp()
+    temp_path = Path(temp_dir) / audio_file.filename
+    
+    with open(temp_path, "wb") as f:
+        f.write(content)
+    
+    try:
+        text = await transcribe_audio_with_whisper(temp_path, settings.openai_api_key)
+        return STTResult(transcribed_text=text)
+    finally:
+        os.unlink(temp_path)
+        os.rmdir(temp_dir)
