@@ -96,7 +96,7 @@ class AIProvider(ABC):
 class OpenAIProvider(AIProvider):
     """OpenAI API provider for STT and NLP"""
     
-    def __init__(self, api_key: str, model: str = "gpt-4o"):
+    def __init__(self, api_key: str, model: str = "gpt-5-mini"):
         self.api_key = api_key
         self.model = model
         self._client = None
@@ -373,7 +373,7 @@ def get_ai_provider(
         AIProvider instance
     """
     if provider_type == AIProviderType.OPENAI:
-        return OpenAIProvider(api_key, model or "gpt-4o")
+        return OpenAIProvider(api_key, model or "gpt-5-mini")
     elif provider_type == AIProviderType.GEMINI:
         return GeminiProvider(api_key, model or "gemini-2.0-flash-exp")
     else:

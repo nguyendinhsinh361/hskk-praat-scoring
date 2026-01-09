@@ -62,9 +62,9 @@ class Settings(BaseSettings):
     
     # AI Providers
     openai_api_key: Optional[str] = None
-    openai_model: str = "gpt-4o"
+    openai_model: str = "gpt-4.1-nano"
     gemini_api_key: Optional[str] = None
-    gemini_model: str = "gemini-2.0-flash-exp"
+    gemini_model: str = "gemini-2.5-flash-lite"
     
     # Default AI provider: "openai" or "gemini"
     default_ai_provider: str = "openai"

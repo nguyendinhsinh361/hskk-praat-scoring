@@ -39,6 +39,15 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"❌ Praat initialization failed: {e}")
     
+    # Pre-load FunASR model (eliminates ~20s delay on first request)
+    try:
+        from app.services.tri_core_service import _get_funasr_model
+        logger.info("🔄 Pre-loading FunASR model...")
+        _get_funasr_model()
+        logger.info("✅ FunASR model loaded")
+    except Exception as e:
+        logger.warning(f"⚠️ FunASR pre-loading failed: {e}")
+    
     logger.info("🚀 Application started successfully")
     
     yield

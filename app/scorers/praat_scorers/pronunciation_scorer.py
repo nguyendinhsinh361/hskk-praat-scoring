@@ -5,6 +5,21 @@ Based on HNR, jitter, and shimmer values
 from typing import Dict, Any, List
 
 from app.scorers.base_scorer import BaseScorer, ScoringResult, ScoreLevel
+from app.constants.scoring import (
+    HNR_EXCELLENT, HNR_GOOD, HNR_POOR,
+    JITTER_EXCELLENT, JITTER_ACCEPTABLE, JITTER_POOR,
+    SHIMMER_EXCELLENT, SHIMMER_ACCEPTABLE, SHIMMER_POOR,
+    DEDUCTION_MINOR, DEDUCTION_MODERATE, DEDUCTION_MAJOR, DEDUCTION_SEVERE,
+    PRONUNCIATION_MAX_SCORES
+)
+from app.constants.messages import (
+    CRITERIA_NAME_PRONUNCIATION,
+    FEEDBACK_PRONUNCIATION_EXCELLENT, FEEDBACK_PRONUNCIATION_GOOD,
+    FEEDBACK_PRONUNCIATION_ACCEPTABLE_PREFIX, FEEDBACK_PRONUNCIATION_ACCEPTABLE_DEFAULT,
+    FEEDBACK_PRONUNCIATION_POOR_PREFIX, FEEDBACK_PRONUNCIATION_POOR_SUFFIX,
+    ISSUE_LOW_HNR, ISSUE_NOISY_VOICE, ISSUE_HIGH_JITTER,
+    ISSUE_UNSTABLE_VOICE_SEVERE, ISSUE_HIGH_SHIMMER, ISSUE_HIGH_SHIMMER_SEVERE
+)
 
 
 class PronunciationScorer(BaseScorer):
@@ -23,28 +38,24 @@ class PronunciationScorer(BaseScorer):
     
     def _load_thresholds(self) -> None:
         """Load thresholds based on exam level"""
-        # Common thresholds from HSKK criteria
+        # Thresholds from centralized constants module
         self.thresholds = {
-            "hnr_excellent": 20.0,
-            "hnr_good": 15.0,
-            "hnr_poor": 10.0,
-            "jitter_excellent": 0.01,
-            "jitter_acceptable": 0.015,
-            "jitter_poor": 0.02,
-            "shimmer_excellent": 0.05,
-            "shimmer_acceptable": 0.08,
-            "shimmer_poor": 0.12
+            "hnr_excellent": HNR_EXCELLENT,
+            "hnr_good": HNR_GOOD,
+            "hnr_poor": HNR_POOR,
+            "jitter_excellent": JITTER_EXCELLENT,
+            "jitter_acceptable": JITTER_ACCEPTABLE,
+            "jitter_poor": JITTER_POOR,
+            "shimmer_excellent": SHIMMER_EXCELLENT,
+            "shimmer_acceptable": SHIMMER_ACCEPTABLE,
+            "shimmer_poor": SHIMMER_POOR
         }
         
         # Max score varies by exam level and task
-        self.max_scores = {
-            "beginner": {"task1": 0.5, "task2": 0.5, "task3": 4.0},
-            "intermediate": {"task1": 1.0, "task2": 3.0, "task3": 4.0},
-            "advanced": {"task1": 2.0, "task2": 5.0, "task3": 5.0}
-        }
+        self.max_scores = PRONUNCIATION_MAX_SCORES
     
     def get_criteria_name(self) -> str:
-        return "Phát âm (Pronunciation)"
+        return CRITERIA_NAME_PRONUNCIATION
     
     def score(self, data: Dict[str, Any], task: str = "task1") -> ScoringResult:
         """
@@ -80,45 +91,45 @@ class PronunciationScorer(BaseScorer):
             hnr_quality = "excellent"
         elif hnr >= self.thresholds["hnr_good"]:
             hnr_quality = "good"
-            deductions += 0.15
+            deductions += DEDUCTION_MINOR
         elif hnr >= self.thresholds["hnr_poor"]:
             hnr_quality = "acceptable"
-            deductions += 0.3
-            issues.append("Độ trong của giọng chưa tốt (HNR thấp)")
+            deductions += DEDUCTION_MODERATE + 0.05
+            issues.append(ISSUE_LOW_HNR)
         else:
             hnr_quality = "poor"
-            deductions += 0.5
-            issues.append("Giọng nói có nhiều nhiễu, thiếu độ trong")
+            deductions += DEDUCTION_SEVERE
+            issues.append(ISSUE_NOISY_VOICE)
         
         # Jitter check (voice stability)
         if jitter <= self.thresholds["jitter_excellent"]:
             jitter_quality = "excellent"
         elif jitter <= self.thresholds["jitter_acceptable"]:
             jitter_quality = "acceptable"
-            deductions += 0.15
+            deductions += DEDUCTION_MINOR
         elif jitter <= self.thresholds["jitter_poor"]:
             jitter_quality = "poor"
-            deductions += 0.25
-            issues.append("Tần số giọng không ổn định (jitter cao)")
+            deductions += DEDUCTION_MODERATE
+            issues.append(ISSUE_HIGH_JITTER)
         else:
             jitter_quality = "very_poor"
-            deductions += 0.35
-            issues.append("Giọng nói thiếu ổn định nghiêm trọng")
+            deductions += DEDUCTION_MAJOR
+            issues.append(ISSUE_UNSTABLE_VOICE_SEVERE)
         
         # Shimmer check (amplitude consistency)
         if shimmer <= self.thresholds["shimmer_excellent"]:
             shimmer_quality = "excellent"
         elif shimmer <= self.thresholds["shimmer_acceptable"]:
             shimmer_quality = "acceptable"
-            deductions += 0.15
+            deductions += DEDUCTION_MINOR
         elif shimmer <= self.thresholds["shimmer_poor"]:
             shimmer_quality = "poor"
-            deductions += 0.25
-            issues.append("Âm lượng không đều (shimmer cao)")
+            deductions += DEDUCTION_MODERATE
+            issues.append(ISSUE_HIGH_SHIMMER)
         else:
             shimmer_quality = "very_poor"
-            deductions += 0.35
-            issues.append("Âm lượng biến thiên quá lớn")
+            deductions += DEDUCTION_MAJOR
+            issues.append(ISSUE_HIGH_SHIMMER_SEVERE)
         
         # Calculate final score
         score = max(0, max_score * (1 - deductions))
@@ -158,14 +169,14 @@ class PronunciationScorer(BaseScorer):
         """Generate Vietnamese feedback based on scoring results"""
         
         if level == ScoreLevel.EXCELLENT:
-            return "Phát âm rõ ràng, không có lỗi sai. Giọng đọc tự nhiên, gần với chuẩn phổ thông."
+            return FEEDBACK_PRONUNCIATION_EXCELLENT
         elif level == ScoreLevel.GOOD:
-            return "Phát âm tương đối tốt, có một vài điểm cần cải thiện nhỏ."
+            return FEEDBACK_PRONUNCIATION_GOOD
         elif level == ScoreLevel.ACCEPTABLE:
-            feedback = "Phát âm cơ bản đạt yêu cầu nhưng cần cải thiện: "
-            feedback += "; ".join(issues[:2]) if issues else "độ ổn định của giọng"
+            feedback = FEEDBACK_PRONUNCIATION_ACCEPTABLE_PREFIX
+            feedback += "; ".join(issues[:2]) if issues else FEEDBACK_PRONUNCIATION_ACCEPTABLE_DEFAULT
             return feedback
         else:
-            feedback = "Mức độ kiểm soát cơ quan phát âm chưa tốt. "
-            feedback += "Các vấn đề cần khắc phục: " + "; ".join(issues) if issues else ""
+            feedback = FEEDBACK_PRONUNCIATION_POOR_PREFIX
+            feedback += FEEDBACK_PRONUNCIATION_POOR_SUFFIX + "; ".join(issues) if issues else ""
             return feedback

@@ -5,6 +5,22 @@ Based on speech rate, pause patterns, and articulation
 from typing import Dict, Any, List
 
 from app.scorers.base_scorer import BaseScorer, ScoringResult, ScoreLevel
+from app.constants.scoring import (
+    SPEECH_RATE_SLOW, SPEECH_RATE_IDEAL_MIN, SPEECH_RATE_IDEAL_MAX, SPEECH_RATE_FAST,
+    PAUSE_RATIO_EXCELLENT, PAUSE_RATIO_ACCEPTABLE, PAUSE_RATIO_POOR,
+    MEAN_PAUSE_EXCELLENT, MEAN_PAUSE_ACCEPTABLE, HESITATION_PAUSE_THRESHOLD,
+    NUM_PAUSES_THRESHOLD, FLUENCY_NORMALIZE_DURATION, SPEED_STABILITY_THRESHOLD,
+    SCORE_MULTIPLIER_EXCELLENT, SCORE_MULTIPLIER_GOOD, SCORE_MULTIPLIER_ACCEPTABLE, SCORE_MULTIPLIER_POOR,
+    FLUENCY_MAX_SCORES
+)
+from app.constants.messages import (
+    CRITERIA_NAME_FLUENCY,
+    FEEDBACK_FLUENCY_EXCELLENT, FEEDBACK_FLUENCY_GOOD_TEMPLATE,
+    FEEDBACK_FLUENCY_ACCEPTABLE_PREFIX, FEEDBACK_FLUENCY_POOR_PREFIX, FEEDBACK_FLUENCY_POOR_SUFFIX,
+    ISSUE_SPEECH_TOO_SLOW, ISSUE_SPEECH_SLIGHTLY_SLOW, ISSUE_SPEECH_TOO_FAST, ISSUE_SPEECH_SLIGHTLY_FAST,
+    ISSUE_TOO_MANY_PAUSES, ISSUE_PAUSES_TOO_LONG, ISSUE_HESITATION, ISSUE_SPEED_UNSTABLE,
+    PROBLEM_WRONG_PAUSE, PROBLEM_HESITATION, PROBLEM_SPEED_UNSTABLE
+)
 
 
 class FluencyScorer(BaseScorer):
@@ -26,27 +42,23 @@ class FluencyScorer(BaseScorer):
     def _load_thresholds(self) -> None:
         """Load thresholds based on exam level"""
         self.thresholds = {
-            "speech_rate_slow": 100,
-            "speech_rate_ideal_min": 150,
-            "speech_rate_ideal_max": 220,
-            "speech_rate_fast": 280,
-            "pause_ratio_excellent": 0.15,
-            "pause_ratio_acceptable": 0.25,
-            "pause_ratio_poor": 0.35,
-            "mean_pause_excellent": 0.3,
-            "mean_pause_acceptable": 0.6,
-            "num_pauses_threshold": 10  # per 30s of speech
+            "speech_rate_slow": SPEECH_RATE_SLOW,
+            "speech_rate_ideal_min": SPEECH_RATE_IDEAL_MIN,
+            "speech_rate_ideal_max": SPEECH_RATE_IDEAL_MAX,
+            "speech_rate_fast": SPEECH_RATE_FAST,
+            "pause_ratio_excellent": PAUSE_RATIO_EXCELLENT,
+            "pause_ratio_acceptable": PAUSE_RATIO_ACCEPTABLE,
+            "pause_ratio_poor": PAUSE_RATIO_POOR,
+            "mean_pause_excellent": MEAN_PAUSE_EXCELLENT,
+            "mean_pause_acceptable": MEAN_PAUSE_ACCEPTABLE,
+            "num_pauses_threshold": NUM_PAUSES_THRESHOLD
         }
         
         # Max score varies by exam level and task
-        self.max_scores = {
-            "beginner": {"task1": 0.5, "task2": 0.5, "task3": 2.0},
-            "intermediate": {"task1": 0.5, "task2": 2.0, "task3": 2.0},
-            "advanced": {"task1": 2.0, "task2": 5.0, "task3": 3.0}
-        }
+        self.max_scores = FLUENCY_MAX_SCORES
     
     def get_criteria_name(self) -> str:
-        return "Độ trôi chảy (Fluency)"
+        return CRITERIA_NAME_FLUENCY
     
     def score(self, data: Dict[str, Any], task: str = "task1") -> ScoringResult:
         """
@@ -68,7 +80,7 @@ class FluencyScorer(BaseScorer):
         duration = data.get("duration", 1)
         
         # Normalize num_pauses to 30s equivalent
-        normalized_pauses = (num_pauses / duration) * 30 if duration > 0 else num_pauses
+        normalized_pauses = (num_pauses / duration) * FLUENCY_NORMALIZE_DURATION if duration > 0 else num_pauses
         
         # Determine max score for this task/level
         max_score = self.max_scores.get(self.exam_level, {}).get(task, 1.0)
@@ -91,22 +103,22 @@ class FluencyScorer(BaseScorer):
         
         # Check speed stability
         speed_diff = abs(articulation_rate - speech_rate)
-        if speed_diff > 50:
-            issues.append("Tốc độ nói không ổn định")
-            detected_problems.append("toc_do_khong_on_dinh")
+        if speed_diff > SPEED_STABILITY_THRESHOLD:
+            issues.append(ISSUE_SPEED_UNSTABLE)
+            detected_problems.append(PROBLEM_SPEED_UNSTABLE)
         
         # Calculate score based on issues
         if not issues:
             score = max_score
             level = ScoreLevel.EXCELLENT
         elif len(issues) == 1:
-            score = max_score * 0.75
+            score = max_score * SCORE_MULTIPLIER_GOOD
             level = ScoreLevel.GOOD
         elif len(issues) == 2:
-            score = max_score * 0.5
+            score = max_score * SCORE_MULTIPLIER_ACCEPTABLE
             level = ScoreLevel.ACCEPTABLE
         else:
-            score = max_score * 0.25
+            score = max_score * SCORE_MULTIPLIER_POOR
             level = ScoreLevel.POOR
         
         # Generate feedback
@@ -132,13 +144,13 @@ class FluencyScorer(BaseScorer):
     def _check_speech_rate(self, rate: float) -> str:
         """Check if speech rate is within ideal range"""
         if rate < self.thresholds["speech_rate_slow"]:
-            return "Tốc độ nói quá chậm"
+            return ISSUE_SPEECH_TOO_SLOW
         elif rate < self.thresholds["speech_rate_ideal_min"]:
-            return "Tốc độ nói hơi chậm"
+            return ISSUE_SPEECH_SLIGHTLY_SLOW
         elif rate > self.thresholds["speech_rate_fast"]:
-            return "Tốc độ nói quá nhanh"
+            return ISSUE_SPEECH_TOO_FAST
         elif rate > self.thresholds["speech_rate_ideal_max"]:
-            return "Tốc độ nói hơi nhanh"
+            return ISSUE_SPEECH_SLIGHTLY_FAST
         return ""
     
     def _check_pause_patterns(
@@ -154,16 +166,16 @@ class FluencyScorer(BaseScorer):
         
         # Wrong pause (too much pause or too long)
         if pause_ratio > self.thresholds["pause_ratio_acceptable"]:
-            issues.append("Ngắt nghỉ quá nhiều")
-            problems.append("ngat_nghi_sai")
+            issues.append(ISSUE_TOO_MANY_PAUSES)
+            problems.append(PROBLEM_WRONG_PAUSE)
         elif mean_pause > self.thresholds["mean_pause_acceptable"]:
-            issues.append("Thời gian ngắt nghỉ quá dài")
-            problems.append("ngat_nghi_sai")
+            issues.append(ISSUE_PAUSES_TOO_LONG)
+            problems.append(PROBLEM_WRONG_PAUSE)
         
         # Hesitation (many short pauses)
-        if normalized_pauses > self.thresholds["num_pauses_threshold"] and mean_pause < 0.5:
-            issues.append("Ngập ngừng nhiều lần")
-            problems.append("ngap_ngung")
+        if normalized_pauses > self.thresholds["num_pauses_threshold"] and mean_pause < HESITATION_PAUSE_THRESHOLD:
+            issues.append(ISSUE_HESITATION)
+            problems.append(PROBLEM_HESITATION)
         
         return {"issues": issues, "problems": problems}
     
@@ -171,14 +183,14 @@ class FluencyScorer(BaseScorer):
         """Generate Vietnamese feedback based on scoring results"""
         
         if level == ScoreLevel.EXCELLENT:
-            return "Tốc độ lời nói ổn định, không có ngập ngừng đáng kể. Ngữ điệu tự nhiên."
+            return FEEDBACK_FLUENCY_EXCELLENT
         elif level == ScoreLevel.GOOD:
-            return f"Độ trôi chảy tốt, có một điểm cần cải thiện: {issues[0] if issues else ''}."
+            return FEEDBACK_FLUENCY_GOOD_TEMPLATE.format(issue=issues[0] if issues else '')
         elif level == ScoreLevel.ACCEPTABLE:
-            feedback = "Mạch lời nói cơ bản đạt yêu cầu. Cần cải thiện: "
+            feedback = FEEDBACK_FLUENCY_ACCEPTABLE_PREFIX
             feedback += "; ".join(issues[:2])
             return feedback
         else:
-            feedback = "Mạch lời nói rời rạc, thiếu sự điều tiết về nhịp và cao độ. "
-            feedback += "Các vấn đề: " + "; ".join(issues)
+            feedback = FEEDBACK_FLUENCY_POOR_PREFIX
+            feedback += FEEDBACK_FLUENCY_POOR_SUFFIX + "; ".join(issues)
             return feedback

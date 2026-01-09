@@ -19,6 +19,10 @@ RUN pip install --upgrade pip
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Pre-download FunASR model during build (cached in image)
+RUN python -c "from funasr import AutoModel; AutoModel(model='paraformer-zh', model_revision='v2.0.4', disable_update=True, device='cpu')" \
+    && echo "FunASR model downloaded successfully"
+
 # Copy application code
 COPY app/ ./app/
 
